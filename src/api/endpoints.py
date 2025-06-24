@@ -154,7 +154,7 @@ async def test_connection():
         # Simple test request to verify API connectivity
         test_response = await openai_client.create_chat_completion(
             {
-                "model": "gpt-3.5-turbo",
+                "model": config.small_model,
                 "messages": [{"role": "user", "content": "Hello"}],
                 "max_tokens": 5,
             }
@@ -163,7 +163,7 @@ async def test_connection():
         return {
             "status": "success",
             "message": "Successfully connected to OpenAI API",
-            "model_used": "gpt-3.5-turbo",
+            "model_used": config.small_model,
             "timestamp": datetime.now().isoformat(),
             "response_id": test_response.get("id", "unknown"),
         }
