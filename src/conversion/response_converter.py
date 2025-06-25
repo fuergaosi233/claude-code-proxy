@@ -308,7 +308,7 @@ async def convert_openai_streaming_to_claude_with_cancellation(
                                 yield f"event: {Constants.EVENT_CONTENT_BLOCK_START}\ndata: {json.dumps({'type': Constants.EVENT_CONTENT_BLOCK_START, 'index': claude_index, 'content_block': {'type': Constants.CONTENT_TOOL_USE, 'id': tool_call['id'], 'name': tool_call['name'], 'input': {}}}, ensure_ascii=False)}\n\n"
                             
                             # Handle function arguments
-                            if "arguments" in function_data and tool_call["started"]:
+                            if "arguments" in function_data and tool_call["started"] and function_data["arguments"] is not None:
                                 tool_call["args_buffer"] += function_data["arguments"]
                                 
                                 # Try to parse complete JSON and send delta when we have valid JSON
