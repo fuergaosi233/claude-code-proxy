@@ -83,14 +83,15 @@ async def create_message(request: ClaudeMessagesRequest, http_request: Request):
             claude_response = convert_openai_to_claude_response(
                 openai_response, request
             )
-        # Check minimum tokens limit
-        if "usage" in claude_response and "output_tokens" in claude_response["usage"]:
-            output_tokens = claude_response["usage"]["output_tokens"]
-            if output_tokens < config.min_tokens_limit:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Output tokens ({output_tokens}) is less than minimum limit ({config.min_tokens_limit}))",
-                )
+            # Check minimum tokens limit
+            if "usage" in claude_response and "output_tokens" in claude_response["usage"]:
+                output_tokens = claude_response["usage"]["output_tokens"]
+                if output_tokens < config.min_tokens_limit:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Output tokens ({output_tokens}) is less than minimum limit ({config.min_tokens_limit}))",
+                    )
+            return claude_response
     except HTTPException:
         raise
     except Exception as e:
@@ -121,11 +122,13 @@ async def count_tokens(request: ClaudeTokenCountRequest):
 
         # Count message characters
         for msg in request.messages:
-            if isinstance(msg.content, str):
+            if msg.content is None:
+                continue
+            elif isinstance(msg.content, str):
                 total_chars += len(msg.content)
             elif isinstance(msg.content, list):
                 for block in msg.content:
-                    if hasattr(block, "text"):
+                    if hasattr(block, "text") and block.text is not None:
                         total_chars += len(block.text)
 
         # Rough estimation: 4 characters per token

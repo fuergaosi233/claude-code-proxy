@@ -23,7 +23,7 @@ def convert_openai_to_claude_response(
 
     # Add text content
     text_content = message.get("content")
-    if text_content:
+    if text_content is not None:
         content_blocks.append({"type": Constants.CONTENT_TEXT, "text": text_content})
 
     # Add tool calls
@@ -122,7 +122,7 @@ async def convert_openai_streaming_to_claude(
                     finish_reason = choice.get("finish_reason")
 
                     # Handle text delta
-                    if "content" in delta and delta["content"]:
+                    if delta and "content" in delta and delta["content"] is not None:
                         yield f"event: {Constants.EVENT_CONTENT_BLOCK_DELTA}\ndata: {json.dumps({'type': Constants.EVENT_CONTENT_BLOCK_DELTA, 'index': text_block_index, 'delta': {'type': Constants.DELTA_TEXT, 'text': delta['content']}}, ensure_ascii=False)}\n\n"
 
                     # Handle tool call deltas with improved incremental processing
@@ -162,7 +162,7 @@ async def convert_openai_streaming_to_claude(
                                 yield f"event: {Constants.EVENT_CONTENT_BLOCK_START}\ndata: {json.dumps({'type': Constants.EVENT_CONTENT_BLOCK_START, 'index': claude_index, 'content_block': {'type': Constants.CONTENT_TOOL_USE, 'id': tool_call['id'], 'name': tool_call['name'], 'input': {}}}, ensure_ascii=False)}\n\n"
                             
                             # Handle function arguments
-                            if "arguments" in function_data and tool_call["started"]:
+                            if "arguments" in function_data and tool_call["started"] and function_data["arguments"] is not None:
                                 tool_call["args_buffer"] += function_data["arguments"]
                                 
                                 # Try to parse complete JSON and send delta when we have valid JSON
@@ -268,7 +268,7 @@ async def convert_openai_streaming_to_claude_with_cancellation(
                     finish_reason = choice.get("finish_reason")
 
                     # Handle text delta
-                    if "content" in delta and delta["content"]:
+                    if delta and "content" in delta and delta["content"] is not None:
                         yield f"event: {Constants.EVENT_CONTENT_BLOCK_DELTA}\ndata: {json.dumps({'type': Constants.EVENT_CONTENT_BLOCK_DELTA, 'index': text_block_index, 'delta': {'type': Constants.DELTA_TEXT, 'text': delta['content']}}, ensure_ascii=False)}\n\n"
 
                     # Handle tool call deltas with improved incremental processing
