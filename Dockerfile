@@ -7,15 +7,14 @@ WORKDIR /app
 # Install uv
 RUN pip install uv
 
-# Copy files required to build and install the package
-COPY pyproject.toml README.md ./
-COPY src ./src/
+# Copy files required for dependency resolution
+COPY pyproject.toml uv.lock README.md ./
 
-# Install dependencies using uv
-RUN uv pip install --system --no-cache .
+# Install dependencies using uv sync
+RUN uv sync --frozen --no-dev
 
 # Copy the rest of the application's code from the host to the container at /app
 COPY . .
 
-# Run start_proxy.py when the container launches
-CMD ["python", "start_proxy.py"]
+# Run claude-code-proxy when the container launches
+CMD ["uv", "run", "claude-code-proxy"]
