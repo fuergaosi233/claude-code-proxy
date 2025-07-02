@@ -7,8 +7,9 @@ WORKDIR /app
 # Install uv
 RUN pip install uv
 
-# Copy the project dependencies file
-COPY pyproject.toml .
+# Copy files required to build and install the package
+COPY pyproject.toml README.md ./
+COPY src ./src/
 
 # Install dependencies using uv
 RUN uv pip install --system --no-cache .
