@@ -237,6 +237,7 @@ async def convert_openai_streaming_to_claude_with_cancellation(
     tool_block_counter = 0
     current_tool_calls = {}
     final_stop_reason = Constants.STOP_END_TURN
+    usage_data = {"input_tokens": 0, "output_tokens": 0}
 
     try:
         async for line in openai_stream:
@@ -254,6 +255,14 @@ async def convert_openai_streaming_to_claude_with_cancellation(
 
                     try:
                         chunk = json.loads(chunk_data)
+                        # logger.info(f"OpenAI chunk: {chunk}")
+                        usage = chunk.get("usage", None)
+                        if usage:
+                            usage_data = {
+                                'input_tokens': usage.get('prompt_tokens', 0),
+                                'output_tokens': usage.get('completion_tokens', 0),
+                                'cache_read_input_tokens': usage.get('prompt_tokens_details', {}).get('cached_tokens', 0)
+                            }
                         choices = chunk.get("choices", [])
                         if not choices:
                             continue
@@ -332,7 +341,6 @@ async def convert_openai_streaming_to_claude_with_cancellation(
                             final_stop_reason = Constants.STOP_END_TURN
                         else:
                             final_stop_reason = Constants.STOP_END_TURN
-                        break
 
     except HTTPException as e:
         # Handle cancellation
@@ -369,6 +377,5 @@ async def convert_openai_streaming_to_claude_with_cancellation(
         if tool_data.get("started") and tool_data.get("claude_index") is not None:
             yield f"event: {Constants.EVENT_CONTENT_BLOCK_STOP}\ndata: {json.dumps({'type': Constants.EVENT_CONTENT_BLOCK_STOP, 'index': tool_data['claude_index']}, ensure_ascii=False)}\n\n"
 
-    usage_data = {"input_tokens": 0, "output_tokens": 0}
     yield f"event: {Constants.EVENT_MESSAGE_DELTA}\ndata: {json.dumps({'type': Constants.EVENT_MESSAGE_DELTA, 'delta': {'stop_reason': final_stop_reason, 'stop_sequence': None}, 'usage': usage_data}, ensure_ascii=False)}\n\n"
     yield f"event: {Constants.EVENT_MESSAGE_STOP}\ndata: {json.dumps({'type': Constants.EVENT_MESSAGE_STOP}, ensure_ascii=False)}\n\n"
