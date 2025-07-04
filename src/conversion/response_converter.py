@@ -258,10 +258,14 @@ async def convert_openai_streaming_to_claude_with_cancellation(
                         # logger.info(f"OpenAI chunk: {chunk}")
                         usage = chunk.get("usage", None)
                         if usage:
+                            cache_read_input_tokens = 0
+                            prompt_tokens_details = usage.get('prompt_tokens_details', {})
+                            if prompt_tokens_details:
+                                cache_read_input_tokens = prompt_tokens_details.get('cached_tokens', 0)
                             usage_data = {
                                 'input_tokens': usage.get('prompt_tokens', 0),
                                 'output_tokens': usage.get('completion_tokens', 0),
-                                'cache_read_input_tokens': usage.get('prompt_tokens_details', {}).get('cached_tokens', 0)
+                                'cache_read_input_tokens': cache_read_input_tokens
                             }
                         choices = chunk.get("choices", [])
                         if not choices:
