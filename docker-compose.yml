@@ -1,0 +1,9 @@
+services:
+  proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8082:8082
+    volumes:
+      - ./.env:/app/.env
