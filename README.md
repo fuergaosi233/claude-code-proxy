@@ -59,7 +59,8 @@ ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_AUTH_TOKEN="some-api-key" cla
 
 **Model Configuration:**
 
-- `BIG_MODEL` - Model for Claude sonnet/opus requests (default: `gpt-4o`)
+- `BIG_MODEL` - Model for Claude opus requests (default: `gpt-4o`)
+- `MIDDLE_MODEL` - Model for Claude opus requests (default: `gpt-4o`)
 - `SMALL_MODEL` - Model for Claude haiku requests (default: `gpt-4o-mini`)
 
 **API Configuration:**
@@ -84,7 +85,8 @@ The proxy maps Claude model requests to your configured models:
 | Claude Request                 | Mapped To     | Environment Variable   |
 | ------------------------------ | ------------- | ---------------------- |
 | Models with "haiku"            | `SMALL_MODEL` | Default: `gpt-4o-mini` |
-| Models with "sonnet" or "opus" | `BIG_MODEL`   | Default: `gpt-4o`      |
+| Models with "sonnet"           | `MIDDLE_MODEL`| Default: `gpt-4o`      |
+| Models with "opus"             | `BIG_MODEL`   | Default: `gpt-4o`      |
 
 ### Provider Examples
 
@@ -94,6 +96,7 @@ The proxy maps Claude model requests to your configured models:
 OPENAI_API_KEY="sk-your-openai-key"
 OPENAI_BASE_URL="https://api.openai.com/v1"
 BIG_MODEL="gpt-4o"
+MIDDLE_MODEL="gpt-4o"
 SMALL_MODEL="gpt-4o-mini"
 ```
 
@@ -103,6 +106,7 @@ SMALL_MODEL="gpt-4o-mini"
 OPENAI_API_KEY="your-azure-key"
 OPENAI_BASE_URL="https://your-resource.openai.azure.com/openai/deployments/your-deployment"
 BIG_MODEL="gpt-4"
+MIDDLE_MODEL="gpt-4"
 SMALL_MODEL="gpt-35-turbo"
 ```
 
@@ -112,6 +116,7 @@ SMALL_MODEL="gpt-35-turbo"
 OPENAI_API_KEY="dummy-key"  # Required but can be dummy
 OPENAI_BASE_URL="http://localhost:11434/v1"
 BIG_MODEL="llama3.1:70b"
+MIDDLE_MODEL="llama3.1:70b"
 SMALL_MODEL="llama3.1:8b"
 ```
 
@@ -129,7 +134,7 @@ import httpx
 response = httpx.post(
     "http://localhost:8082/v1/messages",
     json={
-        "model": "claude-3-5-sonnet-20241022",  # Maps to BIG_MODEL
+        "model": "claude-3-5-sonnet-20241022",  # Maps to MIDDLE_MODEL
         "max_tokens": 100,
         "messages": [
             {"role": "user", "content": "Hello!"}
