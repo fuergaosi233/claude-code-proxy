@@ -22,7 +22,7 @@ class Config:
         
         # Model settings - BIG and SMALL models
         self.big_model = os.environ.get("BIG_MODEL", "gpt-4o")
-        self.middle_model = os.environ.get("MIDDLE_MODEL", "gpt-4o")
+        self.middle_model = os.environ.get("MIDDLE_MODEL", self.big_model)
         self.small_model = os.environ.get("SMALL_MODEL", "gpt-4o-mini")
         
     def validate_api_key(self):

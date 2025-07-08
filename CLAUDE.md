@@ -121,3 +121,7 @@ When Claude Code generates commit messages on your behalf:
 ## General Interaction
 
 Claude Code will directly apply proposed changes and modifications using the available tools, rather than describing them and asking you to implement them manually. This ensures a more efficient and direct workflow.
+
+## Recent Changes
+
+- Updated MIDDLE_MODEL config to default to BIG_MODEL value for consistency
