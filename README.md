@@ -85,7 +85,7 @@ The proxy maps Claude model requests to your configured models:
 | Claude Request                 | Mapped To     | Environment Variable   |
 | ------------------------------ | ------------- | ---------------------- |
 | Models with "haiku"            | `SMALL_MODEL` | Default: `gpt-4o-mini` |
-| Models with "sonnet"           | `MIDDLE_MODEL`| Default: `gpt-4o`      |
+| Models with "sonnet"           | `MIDDLE_MODEL`| Default: `BIG_MODEL`   |
 | Models with "opus"             | `BIG_MODEL`   | Default: `gpt-4o`      |
 
 ### Provider Examples
