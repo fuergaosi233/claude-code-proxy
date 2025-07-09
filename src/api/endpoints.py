@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Header, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 from datetime import datetime
 import uuid
+from typing import Optional
 
 from src.core.config import config
 from src.core.logging import logger
@@ -23,8 +24,30 @@ openai_client = OpenAIClient(
     api_version=config.azure_api_version,
 )
 
+async def validate_api_key(x_api_key: Optional[str] = Header(None), authorization: Optional[str] = Header(None)):
+    """Validate the client's API key from either x-api-key header or Authorization header."""
+    client_api_key = None
+    
+    # Extract API key from headers
+    if x_api_key:
+        client_api_key = x_api_key
+    elif authorization and authorization.startswith("Bearer "):
+        client_api_key = authorization.replace("Bearer ", "")
+    
+    # Skip validation if ANTHROPIC_API_KEY is not set in the environment
+    if not config.anthropic_api_key:
+        return
+        
+    # Validate the client API key
+    if not client_api_key or not config.validate_client_api_key(client_api_key):
+        logger.warning(f"Invalid API key provided by client")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key. Please provide a valid Anthropic API key."
+        )
+
 @router.post("/v1/messages")
-async def create_message(request: ClaudeMessagesRequest, http_request: Request):
+async def create_message(request: ClaudeMessagesRequest, http_request: Request, _: None = Depends(validate_api_key)):
     try:
         logger.debug(
             f"Processing Claude request: model={request.model}, stream={request.stream}"
@@ -96,7 +119,7 @@ async def create_message(request: ClaudeMessagesRequest, http_request: Request):
 
 
 @router.post("/v1/messages/count_tokens")
-async def count_tokens(request: ClaudeTokenCountRequest):
+async def count_tokens(request: ClaudeTokenCountRequest, _: None = Depends(validate_api_key)):
     try:
         # For token counting, we'll use a simple estimation
         # In a real implementation, you might want to use tiktoken or similar
@@ -141,6 +164,7 @@ async def health_check():
         "timestamp": datetime.now().isoformat(),
         "openai_api_configured": bool(config.openai_api_key),
         "api_key_valid": config.validate_api_key(),
+        "client_api_key_validation": bool(config.anthropic_api_key),
     }
 
 
@@ -193,6 +217,7 @@ async def root():
             "openai_base_url": config.openai_base_url,
             "max_tokens_limit": config.max_tokens_limit,
             "api_key_configured": bool(config.openai_api_key),
+            "client_api_key_validation": bool(config.anthropic_api_key),
             "big_model": config.big_model,
             "small_model": config.small_model,
         },
