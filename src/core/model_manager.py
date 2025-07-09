@@ -14,7 +14,9 @@ class ModelManager:
         model_lower = claude_model.lower()
         if 'haiku' in model_lower:
             return self.config.small_model
-        elif 'sonnet' in model_lower or 'opus' in model_lower:
+        elif 'sonnet' in model_lower:
+            return self.config.middle_model
+        elif 'opus' in model_lower:
             return self.config.big_model
         else:
             # Default to big model for unknown models
