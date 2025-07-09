@@ -46,7 +46,11 @@ uv run claude-code-proxy
 ### 4. Use with Claude Code
 
 ```bash
-ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_AUTH_TOKEN="some-api-key" claude
+# If ANTHROPIC_API_KEY is not set in the proxy:
+ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_API_KEY="any-value" claude
+
+# If ANTHROPIC_API_KEY is set in the proxy:
+ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_API_KEY="exact-matching-key" claude
 ```
 
 ## Configuration
@@ -56,6 +60,12 @@ ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_AUTH_TOKEN="some-api-key" cla
 **Required:**
 
 - `OPENAI_API_KEY` - Your API key for the target provider
+
+**Security:**
+
+- `ANTHROPIC_API_KEY` - Expected Anthropic API key for client validation
+  - If set, clients must provide this exact API key to access the proxy
+  - If not set, any API key will be accepted
 
 **Model Configuration:**
 
