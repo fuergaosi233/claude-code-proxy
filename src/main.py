@@ -19,6 +19,8 @@ def main():
         print("  OPENAI_API_KEY - Your OpenAI API key")
         print("")
         print("Optional environment variables:")
+        print("  ANTHROPIC_API_KEY - Expected Anthropic API key for client validation")
+        print("                      If set, clients must provide this exact API key")
         print(
             f"  OPENAI_BASE_URL - OpenAI API base URL (default: https://api.openai.com/v1)"
         )
@@ -45,6 +47,7 @@ def main():
     print(f"   Max Tokens Limit: {config.max_tokens_limit}")
     print(f"   Request Timeout: {config.request_timeout}s")
     print(f"   Server: {config.host}:{config.port}")
+    print(f"   Client API Key Validation: {'Enabled' if config.anthropic_api_key else 'Disabled'}")
     print("")
 
     # Parse log level - extract just the first word to handle comments
