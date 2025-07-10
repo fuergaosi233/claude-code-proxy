@@ -9,6 +9,11 @@ class ModelManager:
         # If it's already an OpenAI model, return as-is
         if claude_model.startswith("gpt-") or claude_model.startswith("o1-"):
             return claude_model
+
+        # If it's other supported models (ARK/Doubao/DeepSeek), return as-is
+        if (claude_model.startswith("ep-") or claude_model.startswith("doubao-") or 
+            claude_model.startswith("deepseek-")):
+            return claude_model
         
         # Map based on model naming patterns
         model_lower = claude_model.lower()
