@@ -18,7 +18,7 @@ from src.core.model_manager import model_manager
 router = APIRouter()
 
 openai_client = OpenAIClient(
-    config.openai_api_key,
+    config.openai_api_keys,
     config.openai_base_url,
     config.request_timeout,
     api_version=config.azure_api_version,
@@ -159,10 +159,14 @@ async def count_tokens(request: ClaudeTokenCountRequest, _: None = Depends(valid
 @router.get("/health")
 async def health_check():
     """Health check endpoint"""
+    api_key_status = openai_client.get_api_key_status()
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "openai_api_configured": bool(config.openai_api_key),
+        "openai_api_configured": bool(config.openai_api_keys),
+        "api_key_count": config.get_api_key_count(),
+        "available_api_keys": api_key_status["available_keys"],
+        "failed_api_keys": api_key_status["failed_keys"],
         "api_key_valid": config.validate_api_key(),
         "client_api_key_validation": bool(config.anthropic_api_key),
     }
@@ -216,7 +220,8 @@ async def root():
         "config": {
             "openai_base_url": config.openai_base_url,
             "max_tokens_limit": config.max_tokens_limit,
-            "api_key_configured": bool(config.openai_api_key),
+            "api_key_configured": bool(config.openai_api_keys),
+            "api_key_count": config.get_api_key_count(),
             "client_api_key_validation": bool(config.anthropic_api_key),
             "big_model": config.big_model,
             "small_model": config.small_model,
@@ -226,5 +231,24 @@ async def root():
             "count_tokens": "/v1/messages/count_tokens",
             "health": "/health",
             "test_connection": "/test-connection",
+            "api_keys_status": "/api-keys/status",
+            "api_keys_reset": "/api-keys/reset",
         },
+    }
+
+
+@router.get("/api-keys/status")
+async def api_keys_status():
+    """Get detailed status of all API keys"""
+    return openai_client.get_api_key_status()
+
+
+@router.post("/api-keys/reset")
+async def reset_api_keys():
+    """Reset all failed API keys (remove from cooldown)"""
+    openai_client.reset_api_key_failures()
+    return {
+        "message": "All API key failures have been reset",
+        "timestamp": datetime.now().isoformat(),
+        "status": openai_client.get_api_key_status()
     }
