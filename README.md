@@ -255,40 +255,6 @@ claude-code-proxy/
 - **Configurable timeouts** and retries
 - **Smart error handling** with detailed logging
 
-## Security & Data Cleanup
-
-### Protecting Sensitive Information
-
-This project handles API keys and other sensitive data. To ensure security:
-
-1. **Never commit real API keys** to version control
-2. **Use `.env` files** for local development (already in `.gitignore`)
-3. **Use environment variables** in production
-4. **Clean up after testing** with sensitive data
-
-### Cleanup Script
-
-After testing with real API keys, use the cleanup script:
-
-```bash
-# Clean up all sensitive data and test artifacts
-./cleanup_sensitive_data.sh
-```
-
-This script removes:
-- Environment variables (API keys, URLs, models)
-- Log files and temporary files
-- Any `.env` files (keeps `.env.example`)
-- Running proxy servers
-- Bash history (if interactive)
-
-### Best Practices
-
-- Always use the `.env.example` as a template
-- Never share real API keys in issues or pull requests
-- Use the cleanup script before committing changes
-- Consider using separate API keys for testing
-
 ## License
 
 MIT License
