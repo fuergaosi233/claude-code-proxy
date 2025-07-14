@@ -59,7 +59,10 @@ ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_API_KEY="exact-matching-key" 
 
 **Required:**
 
-- `OPENAI_API_KEY` - Your API key for the target provider
+- `OPENAI_API_KEY` - Your API key(s) for the target provider
+  - Single key: `OPENAI_API_KEY="sk-your-key"`
+  - Multiple keys (comma-separated): `OPENAI_API_KEY="sk-key1,sk-key2,sk-key3"`
+  - Multiple keys support automatic load balancing and failover
 
 **Security:**
 
@@ -133,6 +136,40 @@ SMALL_MODEL="llama3.1:8b"
 #### Other Providers
 
 Any OpenAI-compatible API can be used by setting the appropriate `OPENAI_BASE_URL`.
+
+## Multiple API Keys Support
+
+The proxy now supports multiple OpenAI API keys for improved reliability and load distribution:
+
+### Configuration
+
+```bash
+# Multiple keys separated by commas
+OPENAI_API_KEY="sk-key1,sk-key2,sk-key3"
+```
+
+### Features
+
+- **Load Balancing**: Requests are distributed across all available keys using round-robin
+- **Automatic Failover**: If one key fails (rate limit, auth error), the proxy automatically tries the next key
+- **Cooldown Management**: Failed keys are temporarily disabled (5 minutes by default) before being retried
+- **Status Monitoring**: Check the status of all keys via `/api-keys/status` endpoint
+
+### Monitoring API Keys
+
+```bash
+# Check status of all API keys
+curl http://localhost:8082/api-keys/status
+
+# Reset all failed keys (remove from cooldown)
+curl -X POST http://localhost:8082/api-keys/reset
+```
+
+### Benefits
+
+- **Higher Rate Limits**: Combine rate limits from multiple API keys
+- **Better Reliability**: Service continues even if some keys fail
+- **Reduced Downtime**: Automatic failover prevents service interruption
 
 ## Usage Examples
 
@@ -217,6 +254,40 @@ claude-code-proxy/
 - **Streaming support** for real-time responses
 - **Configurable timeouts** and retries
 - **Smart error handling** with detailed logging
+
+## Security & Data Cleanup
+
+### Protecting Sensitive Information
+
+This project handles API keys and other sensitive data. To ensure security:
+
+1. **Never commit real API keys** to version control
+2. **Use `.env` files** for local development (already in `.gitignore`)
+3. **Use environment variables** in production
+4. **Clean up after testing** with sensitive data
+
+### Cleanup Script
+
+After testing with real API keys, use the cleanup script:
+
+```bash
+# Clean up all sensitive data and test artifacts
+./cleanup_sensitive_data.sh
+```
+
+This script removes:
+- Environment variables (API keys, URLs, models)
+- Log files and temporary files
+- Any `.env` files (keeps `.env.example`)
+- Running proxy servers
+- Bash history (if interactive)
+
+### Best Practices
+
+- Always use the `.env.example` as a template
+- Never share real API keys in issues or pull requests
+- Use the cleanup script before committing changes
+- Consider using separate API keys for testing
 
 ## License
 

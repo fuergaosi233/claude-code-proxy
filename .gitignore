@@ -174,4 +174,37 @@ poetry.toml
 pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python
-n
+
+# Additional sensitive files
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+secrets.json
+config.json
+.secrets/
+.credentials/
+
+# Temporary and backup files
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
+
+# IDE and editor files
+.vscode/settings.json
+.idea/workspace.xml
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

@@ -1,12 +1,21 @@
 import os
 import sys
+from typing import List
 
 # Configuration
 class Config:
     def __init__(self):
-        self.openai_api_key = os.environ.get("OPENAI_API_KEY")
-        if not self.openai_api_key:
+        openai_api_key_str = os.environ.get("OPENAI_API_KEY")
+        if not openai_api_key_str:
             raise ValueError("OPENAI_API_KEY not found in environment variables")
+        
+        # Support multiple API keys separated by commas
+        self.openai_api_keys = [key.strip() for key in openai_api_key_str.split(",") if key.strip()]
+        if not self.openai_api_keys:
+            raise ValueError("No valid OPENAI_API_KEY found in environment variables")
+        
+        # Keep backward compatibility - first key as primary
+        self.openai_api_key = self.openai_api_keys[0]
         
         # Add Anthropic API key for client validation
         self.anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -31,13 +40,18 @@ class Config:
         self.small_model = os.environ.get("SMALL_MODEL", "gpt-4o-mini")
         
     def validate_api_key(self):
-        """Basic API key validation"""
-        if not self.openai_api_key:
+        """Basic API key validation for all keys"""
+        if not self.openai_api_keys:
             return False
         # Basic format check for OpenAI API keys
-        if not self.openai_api_key.startswith('sk-'):
-            return False
+        for key in self.openai_api_keys:
+            if not key.startswith('sk-'):
+                return False
         return True
+    
+    def get_api_key_count(self):
+        """Get the number of configured API keys"""
+        return len(self.openai_api_keys)
         
     def validate_client_api_key(self, client_api_key):
         """Validate client's Anthropic API key"""
@@ -50,7 +64,8 @@ class Config:
 
 try:
     config = Config()
-    print(f" Configuration loaded: API_KEY={'*' * 20}..., BASE_URL='{config.openai_base_url}'")
+    key_count = config.get_api_key_count()
+    print(f" Configuration loaded: {key_count} API_KEY(s) configured, BASE_URL='{config.openai_base_url}'")
 except Exception as e:
     print(f"=4 Configuration Error: {e}")
     sys.exit(1)
