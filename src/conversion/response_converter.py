@@ -1,6 +1,8 @@
 import json
 import uuid
+
 from fastapi import HTTPException, Request
+
 from src.core.constants import Constants
 from src.models.claude import ClaudeMessagesRequest
 
@@ -69,9 +71,7 @@ def convert_openai_to_claude_response(
         "stop_sequence": None,
         "usage": {
             "input_tokens": openai_response.get("usage", {}).get("prompt_tokens", 0),
-            "output_tokens": openai_response.get("usage", {}).get(
-                "completion_tokens", 0
-            ),
+            "output_tokens": openai_response.get("usage", {}).get("completion_tokens", 0),
         },
     }
 
@@ -112,9 +112,7 @@ async def convert_openai_streaming_to_claude(
                         if not choices:
                             continue
                     except json.JSONDecodeError as e:
-                        logger.warning(
-                            f"Failed to parse chunk: {chunk_data}, error: {e}"
-                        )
+                        logger.warning(f"Failed to parse chunk: {chunk_data}, error: {e}")
                         continue
 
                     choice = choices[0]
@@ -129,7 +127,7 @@ async def convert_openai_streaming_to_claude(
                     if "tool_calls" in delta:
                         for tc_delta in delta["tool_calls"]:
                             tc_index = tc_delta.get("index", 0)
-                            
+
                             # Initialize tool call tracking by index if not exists
                             if tc_index not in current_tool_calls:
                                 current_tool_calls[tc_index] = {
@@ -138,33 +136,37 @@ async def convert_openai_streaming_to_claude(
                                     "args_buffer": "",
                                     "json_sent": False,
                                     "claude_index": None,
-                                    "started": False
+                                    "started": False,
                                 }
-                            
+
                             tool_call = current_tool_calls[tc_index]
-                            
+
                             # Update tool call ID if provided
                             if tc_delta.get("id"):
                                 tool_call["id"] = tc_delta["id"]
-                            
+
                             # Update function name and start content block if we have both id and name
                             function_data = tc_delta.get(Constants.TOOL_FUNCTION, {})
                             if function_data.get("name"):
                                 tool_call["name"] = function_data["name"]
-                            
+
                             # Start content block when we have complete initial data
-                            if (tool_call["id"] and tool_call["name"] and not tool_call["started"]):
+                            if tool_call["id"] and tool_call["name"] and not tool_call["started"]:
                                 tool_block_counter += 1
                                 claude_index = text_block_index + tool_block_counter
                                 tool_call["claude_index"] = claude_index
                                 tool_call["started"] = True
-                                
+
                                 yield f"event: {Constants.EVENT_CONTENT_BLOCK_START}\ndata: {json.dumps({'type': Constants.EVENT_CONTENT_BLOCK_START, 'index': claude_index, 'content_block': {'type': Constants.CONTENT_TOOL_USE, 'id': tool_call['id'], 'name': tool_call['name'], 'input': {}}}, ensure_ascii=False)}\n\n"
-                            
+
                             # Handle function arguments
-                            if "arguments" in function_data and tool_call["started"] and function_data["arguments"] is not None:
+                            if (
+                                "arguments" in function_data
+                                and tool_call["started"]
+                                and function_data["arguments"] is not None
+                            ):
                                 tool_call["args_buffer"] += function_data["arguments"]
-                                
+
                                 # Try to parse complete JSON and send delta when we have valid JSON
                                 try:
                                     json.loads(tool_call["args_buffer"])
@@ -259,21 +261,21 @@ async def convert_openai_streaming_to_claude_with_cancellation(
                         usage = chunk.get("usage", None)
                         if usage:
                             cache_read_input_tokens = 0
-                            prompt_tokens_details = usage.get('prompt_tokens_details', {})
+                            prompt_tokens_details = usage.get("prompt_tokens_details", {})
                             if prompt_tokens_details:
-                                cache_read_input_tokens = prompt_tokens_details.get('cached_tokens', 0)
+                                cache_read_input_tokens = prompt_tokens_details.get(
+                                    "cached_tokens", 0
+                                )
                             usage_data = {
-                                'input_tokens': usage.get('prompt_tokens', 0),
-                                'output_tokens': usage.get('completion_tokens', 0),
-                                'cache_read_input_tokens': cache_read_input_tokens
+                                "input_tokens": usage.get("prompt_tokens", 0),
+                                "output_tokens": usage.get("completion_tokens", 0),
+                                "cache_read_input_tokens": cache_read_input_tokens,
                             }
                         choices = chunk.get("choices", [])
                         if not choices:
                             continue
                     except json.JSONDecodeError as e:
-                        logger.warning(
-                            f"Failed to parse chunk: {chunk_data}, error: {e}"
-                        )
+                        logger.warning(f"Failed to parse chunk: {chunk_data}, error: {e}")
                         continue
 
                     choice = choices[0]
@@ -288,7 +290,7 @@ async def convert_openai_streaming_to_claude_with_cancellation(
                     if "tool_calls" in delta and delta["tool_calls"]:
                         for tc_delta in delta["tool_calls"]:
                             tc_index = tc_delta.get("index", 0)
-                            
+
                             # Initialize tool call tracking by index if not exists
                             if tc_index not in current_tool_calls:
                                 current_tool_calls[tc_index] = {
@@ -297,33 +299,37 @@ async def convert_openai_streaming_to_claude_with_cancellation(
                                     "args_buffer": "",
                                     "json_sent": False,
                                     "claude_index": None,
-                                    "started": False
+                                    "started": False,
                                 }
-                            
+
                             tool_call = current_tool_calls[tc_index]
-                            
+
                             # Update tool call ID if provided
                             if tc_delta.get("id"):
                                 tool_call["id"] = tc_delta["id"]
-                            
+
                             # Update function name and start content block if we have both id and name
                             function_data = tc_delta.get(Constants.TOOL_FUNCTION, {})
                             if function_data.get("name"):
                                 tool_call["name"] = function_data["name"]
-                            
+
                             # Start content block when we have complete initial data
-                            if (tool_call["id"] and tool_call["name"] and not tool_call["started"]):
+                            if tool_call["id"] and tool_call["name"] and not tool_call["started"]:
                                 tool_block_counter += 1
                                 claude_index = text_block_index + tool_block_counter
                                 tool_call["claude_index"] = claude_index
                                 tool_call["started"] = True
-                                
+
                                 yield f"event: {Constants.EVENT_CONTENT_BLOCK_START}\ndata: {json.dumps({'type': Constants.EVENT_CONTENT_BLOCK_START, 'index': claude_index, 'content_block': {'type': Constants.CONTENT_TOOL_USE, 'id': tool_call['id'], 'name': tool_call['name'], 'input': {}}}, ensure_ascii=False)}\n\n"
-                            
+
                             # Handle function arguments
-                            if "arguments" in function_data and tool_call["started"] and function_data["arguments"] is not None:
+                            if (
+                                "arguments" in function_data
+                                and tool_call["started"]
+                                and function_data["arguments"] is not None
+                            ):
                                 tool_call["args_buffer"] += function_data["arguments"]
-                                
+
                                 # Try to parse complete JSON and send delta when we have valid JSON
                                 try:
                                     json.loads(tool_call["args_buffer"])

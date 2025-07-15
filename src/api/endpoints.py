@@ -1,19 +1,20 @@
-from fastapi import APIRouter, HTTPException, Request, Header, Depends
-from fastapi.responses import JSONResponse, StreamingResponse
-from datetime import datetime
 import uuid
+from datetime import datetime
 from typing import Optional
 
-from src.core.config import config
-from src.core.logging import logger
-from src.core.client import OpenAIClient
-from src.models.claude import ClaudeMessagesRequest, ClaudeTokenCountRequest
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
+
 from src.conversion.request_converter import convert_claude_to_openai
 from src.conversion.response_converter import (
-    convert_openai_to_claude_response,
     convert_openai_streaming_to_claude_with_cancellation,
+    convert_openai_to_claude_response,
 )
+from src.core.client import OpenAIClient
+from src.core.config import config
+from src.core.logging import logger
 from src.core.model_manager import model_manager
+from src.models.claude import ClaudeMessagesRequest, ClaudeTokenCountRequest
 
 router = APIRouter()
 
@@ -24,34 +25,40 @@ openai_client = OpenAIClient(
     api_version=config.azure_api_version,
 )
 
-async def validate_api_key(x_api_key: Optional[str] = Header(None), authorization: Optional[str] = Header(None)):
+
+async def validate_api_key(
+    x_api_key: Optional[str] = Header(None), authorization: Optional[str] = Header(None)
+):
     """Validate the client's API key from either x-api-key header or Authorization header."""
     client_api_key = None
-    
+
     # Extract API key from headers
     if x_api_key:
         client_api_key = x_api_key
     elif authorization and authorization.startswith("Bearer "):
         client_api_key = authorization.replace("Bearer ", "")
-    
+
     # Skip validation if ANTHROPIC_API_KEY is not set in the environment
     if not config.anthropic_api_key:
         return
-        
+
     # Validate the client API key
     if not client_api_key or not config.validate_client_api_key(client_api_key):
-        logger.warning(f"Invalid API key provided by client")
+        logger.warning("Invalid API key provided by client")
         raise HTTPException(
             status_code=401,
-            detail="Invalid API key. Please provide a valid Anthropic API key."
+            detail="Invalid API key. Please provide a valid Anthropic API key.",
         )
 
+
 @router.post("/v1/messages")
-async def create_message(request: ClaudeMessagesRequest, http_request: Request, _: None = Depends(validate_api_key)):
+async def create_message(
+    request: ClaudeMessagesRequest,
+    http_request: Request,
+    _: None = Depends(validate_api_key),
+):
     try:
-        logger.debug(
-            f"Processing Claude request: model={request.model}, stream={request.stream}"
-        )
+        logger.info(f"Processing Claude request: model={request.model}, stream={request.stream}")
 
         # Generate unique request ID for cancellation tracking
         request_id = str(uuid.uuid4())
@@ -100,12 +107,8 @@ async def create_message(request: ClaudeMessagesRequest, http_request: Request, 
                 return JSONResponse(status_code=e.status_code, content=error_response)
         else:
             # Non-streaming response
-            openai_response = await openai_client.create_chat_completion(
-                openai_request, request_id
-            )
-            claude_response = convert_openai_to_claude_response(
-                openai_response, request
-            )
+            openai_response = await openai_client.create_chat_completion(openai_request, request_id)
+            claude_response = convert_openai_to_claude_response(openai_response, request)
             return claude_response
     except HTTPException:
         raise
@@ -123,7 +126,6 @@ async def count_tokens(request: ClaudeTokenCountRequest, _: None = Depends(valid
     try:
         # For token counting, we'll use a simple estimation
         # In a real implementation, you might want to use tiktoken or similar
-
         total_chars = 0
 
         # Count system message characters
@@ -173,13 +175,17 @@ async def test_connection():
     """Test API connectivity to OpenAI"""
     try:
         # Simple test request to verify API connectivity
-        test_response = await openai_client.create_chat_completion(
-            {
-                "model": config.small_model,
-                "messages": [{"role": "user", "content": "Hello"}],
-                "max_tokens": 5,
-            }
-        )
+        openai_request = {
+            "model": config.small_model,
+            "messages": [{"role": "user", "content": "Hello"}],
+        }
+        if model_manager.is_o3_model(config.small_model):
+            openai_request["max_completion_tokens"] = 200
+            openai_request["temperature"] = 1
+        else:
+            openai_request["max_tokens"] = 5
+
+        test_response = await openai_client.create_chat_completion(openai_request)
 
         return {
             "status": "success",
