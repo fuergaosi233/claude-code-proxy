@@ -631,6 +631,7 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             position: relative;
             overflow: hidden;
+            width: "35em";
         }
         
         .message-item:hover {
@@ -671,6 +672,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            width: "40em";
         }
         
         .message-time {
@@ -1462,21 +1464,23 @@
                 const expandedClass = isExpanded ? ' expanded' : '';
                 
                 htmlContent += `
-                    <div class="message-item" onclick="toggleMessageContent(${index})">
-                        <div class="message-header">
-                            <span class="message-model">${message.model_name} → ${message.actual_model} ${statusBadge}${stopReasonBadge}</span>
-                            <span class="message-time">${timestamp}</span>
-                        </div>
-                        <div class="message-details">
-                            Request: ${requestLength} chars | Response: ${responseLength} chars
-                            ${message.is_streaming ? ' | Streaming' : ''}
-                            ${messageTypeInfo}
-                        </div>
-                        <div class="message-tokens">
-                            ${message.total_tokens > 0 ? 
-                                `<span class="token-info">📊 Input: ${message.input_tokens} | Output: ${message.output_tokens} | Total: ${message.total_tokens}</span>` : 
-                                '<span class="token-info-empty">📊 Token usage not available</span>'
-                            }
+                    <div class="message-item">
+                        <div class="message-click-box" style="width: 40em;" onclick="toggleMessageContent(${index})">
+                            <div class="message-header">
+                                <span class="message-model">${message.model_name} → ${message.actual_model} ${statusBadge}${stopReasonBadge}</span>
+                                <span class="message-time">${timestamp}</span>
+                            </div>
+                            <div class="message-details">
+                                Request: ${requestLength} chars | Response: ${responseLength} chars
+                                ${message.is_streaming ? ' | Streaming' : ''}
+                                ${messageTypeInfo}
+                            </div>
+                            <div class="message-tokens">
+                                ${message.total_tokens > 0 ? 
+                                    `<span class="token-info">📊 Input: ${message.input_tokens} | Output: ${message.output_tokens} | Total: ${message.total_tokens}</span>` : 
+                                    '<span class="token-info-empty">📊 Token usage not available</span>'
+                                }
+                            </div>
                         </div>
                         <div id="message-content-${index}" class="message-content${expandedClass}">
                             <div class="json-toggle">
