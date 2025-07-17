@@ -37,10 +37,15 @@ cp .env.example .env
 
 ```bash
 # Direct run
+source .env
 python start_proxy.py
 
 # Or with UV
+source .env
 uv run claude-code-proxy
+
+# Or with docker compose
+docker compose up
 ```
 
 ### 4. Use with Claude Code
