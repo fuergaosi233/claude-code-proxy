@@ -45,7 +45,7 @@ source .env
 uv run claude-code-proxy
 
 # Or with docker compose
-docker compose up
+docker compose up -d
 ```
 
 ### 4. Use with Claude Code
