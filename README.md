@@ -1,6 +1,10 @@
-# Claude Code Proxy
+# Claude Code Proxy (Enhanced)
 
 A proxy server that enables **Claude Code** to work with OpenAI-compatible API providers. Convert Claude API requests to OpenAI API calls, allowing you to use various LLM providers through the Claude Code CLI.
+
+![Claude Code Proxy](images/main.png)
+![Claude Code Proxy](images/messages.png)
+![Claude Code Proxy](images/summary.png)
 
 ![Claude Code Proxy](demo.png)
 
@@ -13,6 +17,9 @@ A proxy server that enables **Claude Code** to work with OpenAI-compatible API p
 - **Streaming Responses**: Real-time SSE streaming support
 - **Image Support**: Base64 encoded image input
 - **Error Handling**: Comprehensive error handling and logging
+- **Web Config UI**: 
+- **Local Message History**:
+- **Model Token Summary**:
 
 ## Quick Start
 
