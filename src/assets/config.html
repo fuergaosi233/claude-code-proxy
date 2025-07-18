@@ -1024,6 +1024,7 @@
                     stopAutoRefresh();
                 }
             });
+            connectToProxy();
         });
 
         function connectToProxy() {
@@ -1586,7 +1587,8 @@
                 const messageTypeInfo = getMessageTypeInfo(message);
                 
                 newHtml += `
-                    <div class="message-item" onclick="toggleMessageContent(${index})">
+                    <div class="message-item">
+                        <div class="message-click-box" style="width: 40em;" onclick="toggleMessageContent(${index})">
                         <div class="message-header">
                             <span class="message-model">${message.model_name} → ${message.actual_model} ${statusBadge}${stopReasonBadge}</span>
                             <span class="message-time">${timestamp}</span>
@@ -1601,6 +1603,7 @@
                                 `<span class="token-info">📊 Input: ${message.input_tokens} | Output: ${message.output_tokens} | Total: ${message.total_tokens}</span>` : 
                                 '<span class="token-info-empty">📊 Token usage not available</span>'
                             }
+                        </div>
                         </div>
                         <div id="message-content-${index}" class="message-content">
                             <div class="json-toggle">

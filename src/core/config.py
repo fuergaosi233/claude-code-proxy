@@ -26,14 +26,14 @@ class Config:
         self.max_retries = int(os.environ.get("MAX_RETRIES", "2"))
         
         # Model settings - BIG and SMALL models
-        self.big_model = os.environ.get("BIG_MODEL", "gpt-4o")
-        self.middle_model = os.environ.get("MIDDLE_MODEL", self.big_model)
-        self.small_model = os.environ.get("SMALL_MODEL", "gpt-4o-mini")
-        
         # Available model lists for CLI
-        self.big_models = [m.strip() for m in os.environ.get("BIG_MODELS", self.big_model).split(",")]
-        self.middle_models = [m.strip() for m in os.environ.get("MIDDLE_MODELS",self.middle_model).split(",")]
-        self.small_models = [m.strip() for m in os.environ.get("SMALL_MODELS",self.small_model).split(",")]
+        self.big_models = [m.strip() for m in os.environ.get("BIG_MODELS", os.environ.get("BIG_MODEL", "gpt-4o")).split(",")]
+        self.middle_models = [m.strip() for m in os.environ.get("MIDDLE_MODELS",os.environ.get("MIDDLE_MODEL", self.big_models)).split(",")]
+        self.small_models = [m.strip() for m in os.environ.get("SMALL_MODELS",os.environ.get("SMALL_MODEL", "gpt-4o-mini")).split(",")]
+        self.big_model = self.big_models[0]
+        self.middle_model = self.middle_models[0]
+        self.small_model = self.small_models[0]
+        
         
     def validate_api_key(self):
         """Basic API key validation"""

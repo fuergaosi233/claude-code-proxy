@@ -69,10 +69,8 @@ def convert_openai_to_claude_response(
         "stop_reason": stop_reason,
         "stop_sequence": None,
         "usage": {
-            "input_tokens": openai_response.get("usage", {}).get("prompt_tokens", 0),
-            "output_tokens": openai_response.get("usage", {}).get(
-                "completion_tokens", 0
-            ),
+            "input_tokens": openai_response.get("usage", {}).get("prompt_tokens") or  0,
+            "output_tokens": openai_response.get("usage", {}).get("completion_tokens") or  0,
         },
     }
 
@@ -267,10 +265,10 @@ async def convert_openai_streaming_to_claude_with_cancellation(
                             cache_read_input_tokens = 0
                             prompt_tokens_details = usage.get('prompt_tokens_details', {})
                             if prompt_tokens_details:
-                                cache_read_input_tokens = prompt_tokens_details.get('cached_tokens') or 0
+                                cache_read_input_tokens = prompt_tokens_details.get('cached_tokens', 0)
                             usage_data = {
-                                'input_tokens': usage.get('prompt_tokens') or 0,
-                                'output_tokens': usage.get('completion_tokens') or 0,
+                                'input_tokens': usage.get('prompt_tokens', 0),
+                                'output_tokens': usage.get('completion_tokens', 0),
                                 'cache_read_input_tokens': cache_read_input_tokens
                             }
                             usage_data_received = True
@@ -367,19 +365,6 @@ async def convert_openai_streaming_to_claude_with_cancellation(
                     "message": "Request was cancelled by client",
                 },
             }
-
-            # Always log the final response state
-            await history_manager.log_response(
-                request_id=request_id,
-                response_data={
-                   "error": error_event,
-                },
-                status="failed",
-                input_tokens=usage_data.get("input_tokens") or 0,
-                output_tokens=usage_data.get("output_tokens") or 0,
-                total_tokens=(usage_data.get("input_tokens") or 0) + (usage_data.get("output_tokens") or 0)
-            )
-
             yield f"event: error\ndata: {json.dumps(error_event, ensure_ascii=False)}\n\n"
             return
         else:
