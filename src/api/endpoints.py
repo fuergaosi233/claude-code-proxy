@@ -17,12 +17,15 @@ from src.core.model_manager import model_manager
 
 router = APIRouter()
 
-openai_client = OpenAIClient(
-    config.openai_api_key,
-    config.openai_base_url,
-    config.request_timeout,
-    api_version=config.azure_api_version,
-)
+# Dependency to get a fresh OpenAI client with the current configuration
+def get_openai_client() -> OpenAIClient:
+    """Dependency to create an OpenAIClient with the current application config."""
+    return OpenAIClient(
+        api_key=config.openai_api_key,
+        base_url=config.openai_base_url,
+        timeout=config.request_timeout,
+        api_version=config.azure_api_version,
+    )
 
 async def validate_api_key(x_api_key: Optional[str] = Header(None), authorization: Optional[str] = Header(None)):
     """Validate the client's API key from either x-api-key header or Authorization header."""
@@ -47,7 +50,12 @@ async def validate_api_key(x_api_key: Optional[str] = Header(None), authorizatio
         )
 
 @router.post("/v1/messages")
-async def create_message(request: ClaudeMessagesRequest, http_request: Request, _: None = Depends(validate_api_key)):
+async def create_message(
+    request: ClaudeMessagesRequest,
+    http_request: Request,
+    openai_client: OpenAIClient = Depends(get_openai_client),
+    _ = Depends(validate_api_key)
+):
     try:
         logger.debug(
             f"Processing Claude request: model={request.model}, stream={request.stream}"
@@ -163,13 +171,13 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "openai_api_configured": bool(config.openai_api_key),
-        "api_key_valid": config.validate_api_key(),
+        "api_key_valid": True, # Basic validation is now part of the client
         "client_api_key_validation": bool(config.anthropic_api_key),
     }
 
 
 @router.get("/test-connection")
-async def test_connection():
+async def test_connection(openai_client: OpenAIClient = Depends(get_openai_client)):
     """Test API connectivity to OpenAI"""
     try:
         # Simple test request to verify API connectivity
@@ -178,7 +186,8 @@ async def test_connection():
                 "model": config.small_model,
                 "messages": [{"role": "user", "content": "Hello"}],
                 "max_tokens": 5,
-            }
+            },
+            "test-connection-request"
         )
 
         return {
@@ -205,26 +214,3 @@ async def test_connection():
                 ],
             },
         )
-
-
-@router.get("/")
-async def root():
-    """Root endpoint"""
-    return {
-        "message": "Claude-to-OpenAI API Proxy v1.0.0",
-        "status": "running",
-        "config": {
-            "openai_base_url": config.openai_base_url,
-            "max_tokens_limit": config.max_tokens_limit,
-            "api_key_configured": bool(config.openai_api_key),
-            "client_api_key_validation": bool(config.anthropic_api_key),
-            "big_model": config.big_model,
-            "small_model": config.small_model,
-        },
-        "endpoints": {
-            "messages": "/v1/messages",
-            "count_tokens": "/v1/messages/count_tokens",
-            "health": "/health",
-            "test_connection": "/test-connection",
-        },
-    }

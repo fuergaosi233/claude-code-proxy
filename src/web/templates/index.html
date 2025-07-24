@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Proxy Config</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; margin: 20px; background-color: #f4f4f9; color: #333; }
+        .container { max-width: 800px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #444; }
+        .form-grid { display: grid; grid-template-columns: 200px 1fr; gap: 15px; align-items: center; }
+        label { font-weight: bold; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .actions, .profile-manager { margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; display: flex; gap: 10px; align-items: center; }
+        button { padding: 10px 15px; border: none; border-radius: 4px; color: #fff; cursor: pointer; }
+        .btn-save { background-color: #28a745; }
+        .btn-activate { background-color: #007bff; }
+        .btn-delete { background-color: #dc3545; }
+        .notification { padding: 10px; margin-top: 15px; border-radius: 4px; display: none; }
+        .notification.success { background-color: #d4edda; color: #155724; }
+        .notification.error { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OpenAI to Claude Proxy Configuration</h1>
+        <!-- Profile Management -->
+        <h2>Manage Profiles</h2>
+        <span style="margin-left: auto; font-weight: bold; color: #28a745;">Active Profile: {{ config_manager.get_active_profile_name() }}</span>
+        <div class="profile-manager">
+            <label for="profile-selector">Select Profile:</label>
+            <select id="profile-selector">
+                {% for name in profiles %}
+                <option value="{{ name }}" {% if name == active_profile_name %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+            <button class="btn-activate" onclick="activateProfile()">Activate</button>
+            <button class="btn-delete" onclick="deleteProfile()">Delete</button>
+            <button class="btn-new" onclick="newProfile()" style="background-color: #6c757d;">New</button>
+        </div>
+
+        <!-- Configuration Form -->
+        <form id="config-form" data-original-name="{{ active_profile_name }}">
+            <h2>
+                Edit Profile: <input type="text" id="profile_name" name="profile_name" value="{{ active_profile_name }}" style="width: 200px;">
+            </h2>
+            
+            <h3>API & Models</h3>
+            <div class="form-grid">
+                <label for="OPENAI_API_KEY">OpenAI API Key:</label>
+                <input id="OPENAI_API_KEY" name="OPENAI_API_KEY" value="{{ config.openai_api_key or '' }}">
+                
+                <label for="ANTHROPIC_API_KEY">Client API Key (Optional):</label>
+                <input id="ANTHROPIC_API_KEY" name="ANTHROPIC_API_KEY" value="{{ config.anthropic_api_key or '' }}">
+
+                <label for="OPENAI_BASE_URL">OpenAI Base URL:</label>
+                <input type="text" id="OPENAI_BASE_URL" name="OPENAI_BASE_URL" value="{{ config.openai_base_url }}">
+
+                <label for="BIG_MODEL">Big Model (Opus):</label>
+                <input type="text" id="BIG_MODEL" name="BIG_MODEL" value="{{ config.big_model }}">
+
+                <label for="SMALL_MODEL">Small Model (Haiku):</label>
+                <input type="text" id="SMALL_MODEL" name="SMALL_MODEL" value="{{ config.small_model }}">
+            </div>
+
+            <h3>Performance Settings</h3>
+            <div class="form-grid">
+                <label for="MAX_TOKENS_LIMIT">Max Tokens Limit:</label>
+                <input type="number" id="MAX_TOKENS_LIMIT" name="MAX_TOKENS_LIMIT" value="{{ config.max_tokens_limit }}">
+
+                <label for="MIN_TOKENS_LIMIT">Min Tokens Limit:</label>
+                <input type="number" id="MIN_TOKENS_LIMIT" name="MIN_TOKENS_LIMIT" value="{{ config.min_tokens_limit }}">
+
+                <label for="REQUEST_TIMEOUT">Request Timeout (s):</label>
+                <input type="number" id="REQUEST_TIMEOUT" name="REQUEST_TIMEOUT" value="{{ config.request_timeout }}">
+
+                <label for="MAX_RETRIES">Max Retries:</label>
+                <input type="number" id="MAX_RETRIES" name="MAX_RETRIES" value="{{ config.max_retries }}">
+            </div>
+
+            <div class="actions">
+                <button type="button" class="btn-save" onclick="updateConfig()">Save Changes</button>
+                <button type="button" class="btn-test" onclick="testConnection()" style="background-color: #17a2b8;">Test Connection</button>
+                <button type="button" class="btn-health" onclick="checkHealth()" style="background-color: #ffc107; color: #333;">Check Health</button>
+            </div>
+        </form>
+        <div id="notification" class="notification"></div>
+    </div>
+
+    <script>
+        function showNotification(message, isError = false) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = 'notification'; // Reset classes
+            notification.classList.add(isError ? 'error' : 'success');
+            notification.style.display = 'block';
+            setTimeout(() => { notification.style.display = 'none'; }, 5000);
+        }
+
+        function getFormData() {
+            const form = document.getElementById('config-form');
+            const formData = new FormData(form);
+            const data = {};
+            for (const [key, value] of formData.entries()) {
+                if (key !== 'profile_name') {
+                    data[key] = value;
+                }
+            }
+            return {
+                original_name: form.dataset.originalName,
+                new_name: document.getElementById('profile_name').value,
+                data: data
+            };
+        }
+
+        async function updateConfig() {
+            const payload = getFormData();
+            if (!payload.new_name.trim()) {
+                showNotification('Profile name cannot be empty.', true);
+                return;
+            }
+            
+            const response = await fetch('/api/config/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                showNotification(result.message);
+                // If name was changed, reload to update selector and title
+                if (payload.original_name !== payload.new_name) {
+                    // Activate the renamed profile
+                    await fetch('/api/config/activate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ profile_name: payload.new_name })
+                    });
+                    window.location.href = '/';
+                }
+            } else {
+                showNotification(`Error: ${result.detail}`, true);
+            }
+        }
+
+        async function activateProfile() {
+            const profileName = document.getElementById('profile-selector').value;
+            const response = await fetch('/api/config/activate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profile_name: profileName })
+            });
+
+            if (response.ok && response.redirected) {
+                window.location.href = response.url;
+            } else {
+                const result = await response.json();
+                showNotification(`Error: ${result.detail}`, true);
+            }
+        }
+
+        async function deleteProfile() {
+            const profileName = document.getElementById('profile-selector').value;
+            if (profileName === 'default') {
+                showNotification('Cannot delete the default profile.', true);
+                return;
+            }
+            if (!confirm(`Are you sure you want to delete the profile '${profileName}'?`)) {
+                return;
+            }
+
+            const response = await fetch('/api/config/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profile_name: profileName })
+            });
+            
+            const result = await response.json();
+            if (response.ok) {
+                showNotification(result.message);
+                window.location.reload();
+            } else {
+                showNotification(`Error: ${result.detail}`, true);
+            }
+        }
+
+        async function newProfile() {
+            const newName = prompt("Enter the name for the new profile:");
+            if (!newName || !newName.trim()) {
+                showNotification('Profile name cannot be empty.', true);
+                return;
+            }
+
+            const response = await fetch('/api/config/new', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profile_name: newName })
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                showNotification(result.message);
+                
+                // Add the new profile to the selector, select it, and load its data
+                const selector = document.getElementById('profile-selector');
+                const newOption = new Option(newName, newName);
+                selector.add(newOption);
+                selector.value = newName;
+                loadProfileForEdit(newName);
+
+            } else {
+                showNotification(`Error: ${result.detail}`, true);
+            }
+        }
+
+        function updateFormWithData(profileName, data) {
+            const form = document.getElementById('config-form');
+            form.dataset.originalName = profileName;
+            document.getElementById('profile_name').value = profileName;
+
+            for (const key in data) {
+                const input = form.querySelector(`[name="${key}"]`);
+                if (input) {
+                    input.value = data[key] || '';
+                }
+            }
+        }
+
+        async function loadProfileForEdit(profileName) {
+            const response = await fetch(`/api/config/${profileName}`);
+            if (response.ok) {
+                const data = await response.json();
+                updateFormWithData(profileName, data);
+            } else {
+                showNotification(`Error loading profile data for '${profileName}'.`, true);
+            }
+        }
+
+        // Update form when profile selector changes
+        document.getElementById('profile-selector').addEventListener('change', (event) => {
+            const selectedProfile = event.target.value;
+            loadProfileForEdit(selectedProfile);
+        });
+
+        // Load the initially selected profile data on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const initialProfile = document.getElementById('profile-selector').value;
+            loadProfileForEdit(initialProfile);
+        });
+
+        async function testConnection() {
+            showNotification('Testing connection...', false);
+            const response = await fetch('/test-connection');
+            const result = await response.json();
+            if (response.ok) {
+                showNotification(`Success: ${result.message}`, false);
+            } else {
+                showNotification(`Error: ${result.message || result.detail}`, true);
+            }
+        }
+
+        async function checkHealth() {
+            const response = await fetch('/health');
+            const result = await response.json();
+            if (response.ok && result.status === 'healthy') {
+                showNotification(`Health check OK. API Key is ${result.api_key_valid ? 'valid' : 'invalid'}.`, false);
+            } else {
+                showNotification('Health check failed.', true);
+            }
+        }
+    </script>
+</body>
+</html>

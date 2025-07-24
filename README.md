@@ -1,18 +1,22 @@
-# Claude Code Proxy
+# Claude Code Proxy Enhance
 
 A proxy server that enables **Claude Code** to work with OpenAI-compatible API providers. Convert Claude API requests to OpenAI API calls, allowing you to use various LLM providers through the Claude Code CLI.
 
 ![Claude Code Proxy](demo.png)
 
+Configuration:
+![Configure](image.png)
+
 ## Features
 
 - **Full Claude API Compatibility**: Complete `/v1/messages` endpoint support
 - **Multiple Provider Support**: OpenAI, Azure OpenAI, local models (Ollama), and any OpenAI-compatible API
-- **Smart Model Mapping**: Configure BIG and SMALL models via environment variables
-- **Function Calling**: Complete tool use support with proper conversion
-- **Streaming Responses**: Real-time SSE streaming support
-- **Image Support**: Base64 encoded image input
-- **Error Handling**: Comprehensive error handling and logging
+- **Web UI for Configuration**: Easy-to-use web interface to manage multiple configuration profiles.
+- **Smart Model Mapping**: Configure BIG and SMALL models via the UI.
+- **Function Calling**: Complete tool use support with proper conversion.
+- **Streaming Responses**: Real-time SSE streaming support.
+- **Image Support**: Base64 encoded image input.
+- **Error Handling**: Comprehensive error handling and logging.
 
 ## Quick Start
 
@@ -26,14 +30,7 @@ uv sync
 pip install -r requirements.txt
 ```
 
-### 2. Configure
-
-```bash
-cp .env.example .env
-# Edit .env and add your API configuration
-```
-
-### 3. Start Server
+### 2. Start Server
 
 ```bash
 # Direct run
@@ -41,7 +38,21 @@ python start_proxy.py
 
 # Or with UV
 uv run claude-code-proxy
+
+# Or with docker
+docker run -d -p 8082:8082 zimpel1/claude-code-proxy-enhance:latest
+
+# Persistent configuration
+docker run -d -p 8082:8082 -v ~/configs:/app/configs zimpel1/claude-code-proxy-enhance:latest 
 ```
+
+### 3. Configure via Web UI
+
+After starting the server, open your browser and go to `http://localhost:8082` (or your configured URL).
+
+- The server will create a default configuration file at `configs/profiles.json` on first run.
+- Use the web interface to create, edit, and switch between configuration profiles.
+- Changes are applied instantly without needing to restart the server.
 
 ### 4. Use with Claude Code
 
@@ -55,38 +66,17 @@ ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_API_KEY="exact-matching-key" 
 
 ## Configuration
 
-### Environment Variables
+Configuration is now managed through a web interface, which saves settings to `configs/profiles.json`.
 
-**Required:**
+### Web UI Configuration
 
-- `OPENAI_API_KEY` - Your API key for the target provider
+- **Profiles**: You can create multiple configuration profiles (e.g., one for OpenAI, one for Azure, one for local models).
+- **Dynamic Reloading**: Activating a new profile applies the settings immediately without a server restart.
+- **Editable Fields**: All major settings, including API keys, base URLs, model names, and server settings, are editable through the UI.
 
-**Security:**
+### Environment Variables (for first run)
 
-- `ANTHROPIC_API_KEY` - Expected Anthropic API key for client validation
-  - If set, clients must provide this exact API key to access the proxy
-  - If not set, any API key will be accepted
-
-**Model Configuration:**
-
-- `BIG_MODEL` - Model for Claude opus requests (default: `gpt-4o`)
-- `MIDDLE_MODEL` - Model for Claude opus requests (default: `gpt-4o`)
-- `SMALL_MODEL` - Model for Claude haiku requests (default: `gpt-4o-mini`)
-
-**API Configuration:**
-
-- `OPENAI_BASE_URL` - API base URL (default: `https://api.openai.com/v1`)
-
-**Server Settings:**
-
-- `HOST` - Server host (default: `0.0.0.0`)
-- `PORT` - Server port (default: `8082`)
-- `LOG_LEVEL` - Logging level (default: `WARNING`)
-
-**Performance:**
-
-- `MAX_TOKENS_LIMIT` - Token limit (default: `4096`)
-- `REQUEST_TIMEOUT` - Request timeout in seconds (default: `90`)
+Environment variables from your `.env` file are used **only on the very first run** to create the initial `default` profile. After that, all configuration is managed through the UI.
 
 ### Model Mapping
 

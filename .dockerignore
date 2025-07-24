@@ -1,0 +1,18 @@
+# Ignore configuration profiles to avoid including sensitive API keys in Docker images
+configs/profiles.json
+
+# Common files to ignore in Docker builds
+.git
+.gitignore
+.vscode
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache
+.coverage
+*.log
+.DS_Store
+Thumbs.db 
