@@ -73,6 +73,11 @@ def convert_claude_to_openai(
 
         i += 1
 
+    # Check if this is a newer reasoning model
+    is_reasoning_model = (openai_model.startswith("o1") or openai_model.startswith("o3") or 
+                         openai_model.startswith("o4") or openai_model.startswith("gpt-5") or 
+                         openai_model.startswith("gpt5"))
+    
     # Build OpenAI request
     openai_request = {
         "model": openai_model,
@@ -80,6 +85,11 @@ def convert_claude_to_openai(
         "temperature": claude_request.temperature,
         "stream": claude_request.stream,
     }
+    
+    # Handle temperature restrictions for reasoning models
+    if is_reasoning_model and claude_request.temperature != 1:
+        openai_request["temperature"] = 1
+        logger.warning(f"Temperature {claude_request.temperature} not supported for {openai_model}, using 1")
     
     # Handle max_tokens vs max_completion_tokens for newer OpenAI models
     max_tokens_value = min(
