@@ -73,33 +73,13 @@ def convert_claude_to_openai(
 
         i += 1
 
-    # Check if this is a newer reasoning model
-    is_reasoning_model = (openai_model.startswith("o1") or openai_model.startswith("o3") or 
-                         openai_model.startswith("o4") or openai_model.startswith("gpt-5") or 
-                         openai_model.startswith("gpt5"))
-    
     # Build OpenAI request
     openai_request = {
         "model": openai_model,
         "messages": openai_messages,
+        "temperature": claude_request.temperature,
+        "stream": claude_request.stream,
     }
-    
-    # Handle temperature restrictions for reasoning models
-    # These models only support temperature=1
-    if is_reasoning_model and claude_request.temperature != 1:
-        openai_request["temperature"] = 1
-        logger.warning(f"Temperature {claude_request.temperature} not supported for {openai_model}, using 1")
-    else:
-        openai_request["temperature"] = claude_request.temperature
-    
-    # Handle streaming - disable for unverified organizations with reasoning models
-    # You can set DISABLE_STREAMING_FOR_REASONING=true in env to always disable streaming
-    if is_reasoning_model and claude_request.stream:
-        # Try streaming first, but can fallback to non-streaming if org is unverified
-        openai_request["stream"] = claude_request.stream
-        logger.info(f"Streaming requested for {openai_model} - may fail if org is unverified")
-    else:
-        openai_request["stream"] = claude_request.stream
     
     # Handle max_tokens vs max_completion_tokens for newer OpenAI models
     max_tokens_value = min(
@@ -108,7 +88,9 @@ def convert_claude_to_openai(
     )
     
     # o1, o3, o4 and newer reasoning models use max_completion_tokens instead of max_tokens
-    if is_reasoning_model:
+    if (openai_model.startswith("o1") or openai_model.startswith("o3") or 
+        openai_model.startswith("o4") or openai_model.startswith("gpt-5") or 
+        openai_model.startswith("gpt5")):
         openai_request["max_completion_tokens"] = max_tokens_value
     else:
         openai_request["max_tokens"] = max_tokens_value
