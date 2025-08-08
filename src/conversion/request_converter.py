@@ -92,12 +92,12 @@ def convert_claude_to_openai(
     else:
         openai_request["temperature"] = claude_request.temperature
     
-    # Handle streaming - disable for unverified organizations with reasoning models
-    # You can set DISABLE_STREAMING_FOR_REASONING=true in env to always disable streaming
+    # Handle streaming - disable for reasoning models to avoid org verification issues
+    # These models require organization verification for streaming
     if is_reasoning_model and claude_request.stream:
-        # Try streaming first, but can fallback to non-streaming if org is unverified
-        openai_request["stream"] = claude_request.stream
-        logger.info(f"Streaming requested for {openai_model} - may fail if org is unverified")
+        # Disable streaming for reasoning models to avoid verification errors
+        openai_request["stream"] = False
+        logger.warning(f"Streaming disabled for {openai_model} - requires org verification")
     else:
         openai_request["stream"] = claude_request.stream
     
