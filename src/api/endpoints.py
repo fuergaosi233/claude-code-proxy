@@ -17,15 +17,50 @@ from src.core.model_manager import model_manager
 
 router = APIRouter()
 
-openai_client = OpenAIClient(
-    config.openai_api_key,
-    config.openai_base_url,
-    config.request_timeout,
-    api_version=config.azure_api_version,
-)
+# Create OpenAI client - use env key if available, otherwise create a dummy one
+if config.openai_api_key:
+    openai_client = OpenAIClient(
+        config.openai_api_key,
+        config.openai_base_url,
+        config.request_timeout,
+        api_version=config.azure_api_version,
+    )
+else:
+    # In passthrough mode, create a client with a dummy key for compatibility
+    # The actual client will be created per-request with user's API key
+    openai_client = OpenAIClient(
+        "sk-dummy",  # This won't be used for actual requests
+        config.openai_base_url,
+        config.request_timeout,
+        api_version=config.azure_api_version,
+    )
 
-async def validate_api_key(x_api_key: Optional[str] = Header(None), authorization: Optional[str] = Header(None)):
-    """Validate the client's API key from either x-api-key header or Authorization header."""
+def get_openai_client(user_api_key: Optional[str] = None) -> OpenAIClient:
+    """Get OpenAI client - use env key if available, otherwise create with user-provided key."""
+    if config.openai_api_key:
+        # Proxy mode: use pre-configured client
+        return openai_client
+    elif user_api_key:
+        # Passthrough mode: create client with user-provided key
+        if not config.validate_api_key(user_api_key):
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid OpenAI API key format. Please provide a valid API key starting with 'sk-'."
+            )
+        return OpenAIClient(
+            user_api_key,
+            config.openai_base_url,
+            config.request_timeout,
+            api_version=config.azure_api_version,
+        )
+    else:
+        raise HTTPException(
+            status_code=401,
+            detail="No OpenAI API key available. Please set OPENAI_API_KEY environment variable or provide your OpenAI API key in Authorization header."
+        )
+
+async def validate_api_key_and_extract(x_api_key: Optional[str] = Header(None), authorization: Optional[str] = Header(None)):
+    """Extract API key and handle validation based on configuration."""
     client_api_key = None
     
     # Extract API key from headers
@@ -34,20 +69,30 @@ async def validate_api_key(x_api_key: Optional[str] = Header(None), authorizatio
     elif authorization and authorization.startswith("Bearer "):
         client_api_key = authorization.replace("Bearer ", "")
     
-    # Skip validation if ANTHROPIC_API_KEY is not set in the environment
-    if not config.anthropic_api_key:
-        return
-        
-    # Validate the client API key
-    if not client_api_key or not config.validate_client_api_key(client_api_key):
-        logger.warning(f"Invalid API key provided by client")
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid API key. Please provide a valid Anthropic API key."
-        )
+    # If OPENAI_API_KEY is configured in environment, use proxy validation
+    if config.openai_api_key:
+        # Proxy mode: validate against ANTHROPIC_API_KEY if configured
+        if config.anthropic_api_key:
+            if not client_api_key or not config.validate_client_api_key(client_api_key):
+                logger.warning(f"Invalid API key provided by client")
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid API key. Please provide a valid Anthropic API key."
+                )
+        # Return None since we'll use env OPENAI_API_KEY
+        return None
+    else:
+        # Passthrough mode: no ANTHROPIC validation, use client key as OpenAI key
+        if not client_api_key:
+            raise HTTPException(
+                status_code=401,
+                detail="No API key provided. Please provide your OpenAI API key in Authorization header."
+            )
+        # Return the client API key to be used as OpenAI key
+        return client_api_key
 
 @router.post("/v1/messages")
-async def create_message(request: ClaudeMessagesRequest, http_request: Request, _: None = Depends(validate_api_key)):
+async def create_message(request: ClaudeMessagesRequest, http_request: Request, user_api_key: str = Depends(validate_api_key_and_extract)):
     try:
         logger.debug(
             f"Processing Claude request: model={request.model}, stream={request.stream}"
@@ -55,6 +100,9 @@ async def create_message(request: ClaudeMessagesRequest, http_request: Request, 
 
         # Generate unique request ID for cancellation tracking
         request_id = str(uuid.uuid4())
+        
+        # Get OpenAI client (either default or created with user's key)
+        openai_client = get_openai_client(user_api_key)
 
         # Convert Claude request to OpenAI format
         openai_request = convert_claude_to_openai(request, model_manager)
@@ -119,7 +167,7 @@ async def create_message(request: ClaudeMessagesRequest, http_request: Request, 
 
 
 @router.post("/v1/messages/count_tokens")
-async def count_tokens(request: ClaudeTokenCountRequest, _: None = Depends(validate_api_key)):
+async def count_tokens(request: ClaudeTokenCountRequest, user_api_key: str = Depends(validate_api_key_and_extract)):
     try:
         # For token counting, we'll use a simple estimation
         # In a real implementation, you might want to use tiktoken or similar
@@ -163,7 +211,7 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "openai_api_configured": bool(config.openai_api_key),
-        "api_key_valid": config.validate_api_key(),
+        "api_key_valid": config.validate_api_key() if config.openai_api_key else "per_request",
         "client_api_key_validation": bool(config.anthropic_api_key),
     }
 
@@ -172,6 +220,17 @@ async def health_check():
 async def test_connection():
     """Test API connectivity to OpenAI"""
     try:
+        # Use default client if available, otherwise require user API key
+        if not config.openai_api_key:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "status": "failed",
+                    "message": "No default OpenAI API key configured. Test connection requires OPENAI_API_KEY environment variable.",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
+        
         # Simple test request to verify API connectivity
         test_response = await openai_client.create_chat_completion(
             {

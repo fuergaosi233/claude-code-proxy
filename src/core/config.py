@@ -5,8 +5,7 @@ import sys
 class Config:
     def __init__(self):
         self.openai_api_key = os.environ.get("OPENAI_API_KEY")
-        if not self.openai_api_key:
-            raise ValueError("OPENAI_API_KEY not found in environment variables")
+        # Note: openai_api_key is now optional - can be provided per request
         
         # Add Anthropic API key for client validation
         self.anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -30,12 +29,13 @@ class Config:
         self.middle_model = os.environ.get("MIDDLE_MODEL", self.big_model)
         self.small_model = os.environ.get("SMALL_MODEL", "gpt-4o-mini")
         
-    def validate_api_key(self):
-        """Basic API key validation"""
-        if not self.openai_api_key:
+    def validate_api_key(self, api_key: str = None):
+        """Basic API key validation - use provided key or fallback to env key"""
+        key_to_validate = api_key if api_key else self.openai_api_key
+        if not key_to_validate:
             return False
         # Basic format check for OpenAI API keys
-        if not self.openai_api_key.startswith('sk-'):
+        if not key_to_validate.startswith('sk-'):
             return False
         return True
         
