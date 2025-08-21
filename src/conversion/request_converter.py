@@ -19,7 +19,88 @@ def convert_claude_to_openai(
 
     # Convert messages
     openai_messages = []
-
+    
+    # Process Claude messages with enhanced logic from TypeScript reference
+    for anthropic_message in claude_request.messages:
+        if isinstance(anthropic_message.content, str):
+            openai_messages.append({
+                "role": anthropic_message.role,
+                "content": anthropic_message.content
+            })
+        else:
+            if anthropic_message.role == Constants.ROLE_USER:
+                # Separate tool results from non-tool messages
+                non_tool_messages = []
+                tool_messages = []
+                
+                if anthropic_message.content:
+                    for part in anthropic_message.content:
+                        if hasattr(part, 'type') and part.type == Constants.CONTENT_TOOL_RESULT:
+                            tool_messages.append(part)
+                        elif hasattr(part, 'type') and part.type in [Constants.CONTENT_TEXT, Constants.CONTENT_IMAGE]:
+                            non_tool_messages.append(part)
+                
+                # Process tool result messages FIRST
+                for tool_message in tool_messages:
+                    content = parse_tool_result_content(tool_message.content)
+                    openai_messages.append({
+                        "role": Constants.ROLE_TOOL,
+                        "tool_call_id": tool_message.tool_use_id,
+                        "content": content,
+                    })
+                
+                # Process non-tool messages
+                if non_tool_messages:
+                    openai_messages.append({
+                        "role": Constants.ROLE_USER,
+                        "content": _convert_content_blocks_to_openai(non_tool_messages)
+                    })
+                    
+            elif anthropic_message.role == Constants.ROLE_ASSISTANT:
+                # Separate text and tool use messages
+                non_tool_messages = []
+                tool_messages = []
+                
+                if anthropic_message.content:
+                    for part in anthropic_message.content:
+                        if hasattr(part, 'type') and part.type == Constants.CONTENT_TOOL_USE:
+                            tool_messages.append(part)
+                        elif hasattr(part, 'type') and part.type in [Constants.CONTENT_TEXT, Constants.CONTENT_IMAGE]:
+                            non_tool_messages.append(part)
+                
+                # Build assistant message
+                content = None
+                if non_tool_messages:
+                    content_parts = []
+                    for part in non_tool_messages:
+                        if part.type == Constants.CONTENT_TEXT:
+                            content_parts.append(part.text)
+                        # Assistant cannot send images in OpenAI format
+                    content = "".join(content_parts) if content_parts else None
+                
+                # Process tool calls
+                tool_calls = []
+                for tool_message in tool_messages:
+                    tool_calls.append({
+                        "id": tool_message.id,
+                        "type": Constants.TOOL_FUNCTION,
+                        Constants.TOOL_FUNCTION: {
+                            "name": tool_message.name,
+                            "arguments": json.dumps(tool_message.input, ensure_ascii=False),
+                        },
+                    })
+                
+                openai_message = {
+                    "role": Constants.ROLE_ASSISTANT,
+                    "content": content,
+                }
+                
+                # Cannot be an empty array. API expects an array with minimum length 1
+                if tool_calls:
+                    openai_message["tool_calls"] = tool_calls
+                    
+                openai_messages.append(openai_message)
+    
     # Add system message if present
     if claude_request.system:
         system_text = ""
@@ -38,40 +119,45 @@ def convert_claude_to_openai(
             system_text = "\n\n".join(text_parts)
 
         if system_text.strip():
-            openai_messages.append(
-                {"role": Constants.ROLE_SYSTEM, "content": system_text.strip()}
-            )
+            system_message = {"role": Constants.ROLE_SYSTEM, "content": system_text.strip()}
+            
+            # Add prompt cache support for system message if enabled
+            if config.supports_prompt_cache:
+                system_message = {
+                    "role": Constants.ROLE_SYSTEM,
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": system_text.strip(),
+                            "cache_control": {"type": "ephemeral"}
+                        }
+                    ]
+                }
+            
+            openai_messages.insert(0, system_message)
 
-    # Process Claude messages
-    i = 0
-    while i < len(claude_request.messages):
-        msg = claude_request.messages[i]
-
-        if msg.role == Constants.ROLE_USER:
-            openai_message = convert_claude_user_message(msg)
-            openai_messages.append(openai_message)
-        elif msg.role == Constants.ROLE_ASSISTANT:
-            openai_message = convert_claude_assistant_message(msg)
-            openai_messages.append(openai_message)
-
-            # Check if next message contains tool results
-            if i + 1 < len(claude_request.messages):
-                next_msg = claude_request.messages[i + 1]
-                if (
-                    next_msg.role == Constants.ROLE_USER
-                    and isinstance(next_msg.content, list)
-                    and any(
-                        block.type == Constants.CONTENT_TOOL_RESULT
-                        for block in next_msg.content
-                        if hasattr(block, "type")
-                    )
-                ):
-                    # Process tool results
-                    i += 1  # Skip to tool result message
-                    tool_results = convert_claude_tool_results(next_msg)
-                    openai_messages.extend(tool_results)
-
-        i += 1
+    # Add prompt cache control to the last two user messages if enabled
+    if config.supports_prompt_cache:
+        # Get the last two user messages
+        user_messages = [msg for msg in openai_messages if msg.get("role") == Constants.ROLE_USER]
+        last_two_user_messages = user_messages[-2:] if len(user_messages) >= 2 else user_messages
+        
+        for msg in last_two_user_messages:
+            # Convert string content to array format for cache_control
+            if isinstance(msg["content"], str):
+                msg["content"] = [{"type": "text", "text": msg["content"]}]
+            
+            if isinstance(msg["content"], list):
+                # Find the last text part and add cache_control to it
+                text_parts = [part for part in msg["content"] if part.get("type") == "text"]
+                if text_parts:
+                    last_text_part = text_parts[-1]
+                else:
+                    # Add a text part if none exists
+                    last_text_part = {"type": "text", "text": "..."}
+                    msg["content"].append(last_text_part)
+                
+                last_text_part["cache_control"] = {"type": "ephemeral"}
 
     # Build OpenAI request
     openai_request = {
@@ -127,6 +213,85 @@ def convert_claude_to_openai(
             openai_request["tool_choice"] = "auto"
 
     return openai_request
+
+
+
+def _convert_content_blocks_to_openai(content_blocks) -> Any:
+    """Convert content blocks to OpenAI format."""
+    if not content_blocks:
+        return ""
+    
+    openai_content = []
+    for part in content_blocks:
+        if part.type == Constants.CONTENT_TEXT:
+            openai_content.append({"type": "text", "text": part.text})
+        elif part.type == Constants.CONTENT_IMAGE:
+            if (
+                hasattr(part, 'source') and isinstance(part.source, dict)
+                and part.source.get("type") == "base64"
+                and "media_type" in part.source
+                and "data" in part.source
+            ):
+                openai_content.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{part.source['media_type']};base64,{part.source['data']}"
+                    },
+                })
+    
+    # Return simple string if only one text block
+    if len(openai_content) == 1 and openai_content[0]["type"] == "text":
+        return openai_content[0]["text"]
+    
+    return openai_content
+
+
+def parse_tool_result_content(content):
+    """Parse and normalize tool result content into a string format with enhanced capabilities."""
+    if content is None:
+        return ""
+        
+    if isinstance(content, str):
+        return content
+        
+    if isinstance(content, list):
+        result_parts = []
+        
+        for part in content:
+            if isinstance(part, dict):
+                if part.get("type") == Constants.CONTENT_TEXT:
+                    result_parts.append(part.get("text", ""))
+                elif part.get("type") == Constants.CONTENT_IMAGE:
+                    # Handle images in tool results (from TypeScript reference)
+                    result_parts.append("(see following user message for image)")
+                else:
+                    # Handle other dict types
+                    if "text" in part:
+                        result_parts.append(part.get("text", ""))
+                    else:
+                        try:
+                            result_parts.append(json.dumps(part, ensure_ascii=False))
+                        except:
+                            result_parts.append(str(part))
+            elif isinstance(part, str):
+                result_parts.append(part)
+            else:
+                result_parts.append(str(part))
+                
+        return "\n".join(filter(None, result_parts))
+        
+    if isinstance(content, dict):
+        if content.get("type") == Constants.CONTENT_TEXT:
+            return content.get("text", "")
+        try:
+            return json.dumps(content, ensure_ascii=False)
+        except:
+            return str(content)
+            
+    try:
+        return str(content)
+    except:
+        return "Unparseable content"
 
 
 def convert_claude_user_message(msg: ClaudeMessage) -> Dict[str, Any]:
@@ -225,40 +390,3 @@ def convert_claude_tool_results(msg: ClaudeMessage) -> List[Dict[str, Any]]:
     return tool_messages
 
 
-def parse_tool_result_content(content):
-    """Parse and normalize tool result content into a string format."""
-    if content is None:
-        return "No content provided"
-
-    if isinstance(content, str):
-        return content
-
-    if isinstance(content, list):
-        result_parts = []
-        for item in content:
-            if isinstance(item, dict) and item.get("type") == Constants.CONTENT_TEXT:
-                result_parts.append(item.get("text", ""))
-            elif isinstance(item, str):
-                result_parts.append(item)
-            elif isinstance(item, dict):
-                if "text" in item:
-                    result_parts.append(item.get("text", ""))
-                else:
-                    try:
-                        result_parts.append(json.dumps(item, ensure_ascii=False))
-                    except:
-                        result_parts.append(str(item))
-        return "\n".join(result_parts).strip()
-
-    if isinstance(content, dict):
-        if content.get("type") == Constants.CONTENT_TEXT:
-            return content.get("text", "")
-        try:
-            return json.dumps(content, ensure_ascii=False)
-        except:
-            return str(content)
-
-    try:
-        return str(content)
-    except:
-        return "Unparseable content"
