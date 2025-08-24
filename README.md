@@ -31,17 +31,16 @@ pip install -r requirements.txt
 ```bash
 cp .env.example .env
 # Edit .env and add your API configuration
+# Note: Environment variables are automatically loaded from .env file
 ```
 
 ### 3. Start Server
 
 ```bash
 # Direct run
-source .env
 python start_proxy.py
 
 # Or with UV
-source .env
 uv run claude-code-proxy
 
 # Or with docker compose
@@ -59,6 +58,8 @@ ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_API_KEY="exact-matching-key" 
 ```
 
 ## Configuration
+
+The application automatically loads environment variables from a `.env` file in the project root using `python-dotenv`. You can also set environment variables directly in your shell.
 
 ### Environment Variables
 
