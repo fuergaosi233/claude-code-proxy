@@ -73,17 +73,37 @@ def convert_claude_to_openai(
 
         i += 1
 
+    # Check if this is a newer reasoning model
+    is_reasoning_model = (openai_model.startswith("o1") or openai_model.startswith("o3") or 
+                         openai_model.startswith("o4") or openai_model.startswith("gpt-5") or 
+                         openai_model.startswith("gpt5"))
+    
     # Build OpenAI request
     openai_request = {
         "model": openai_model,
         "messages": openai_messages,
-        "max_tokens": min(
-            max(claude_request.max_tokens, config.min_tokens_limit),
-            config.max_tokens_limit,
-        ),
         "temperature": claude_request.temperature,
         "stream": claude_request.stream,
     }
+    
+    # Handle temperature restrictions for reasoning models
+    if is_reasoning_model and claude_request.temperature != 1:
+        openai_request["temperature"] = 1
+        logger.warning(f"Temperature {claude_request.temperature} not supported for {openai_model}, using 1")
+    
+    # Handle max_tokens vs max_completion_tokens for newer OpenAI models
+    max_tokens_value = min(
+        max(claude_request.max_tokens, config.min_tokens_limit),
+        config.max_tokens_limit,
+    )
+    
+    # o1, o3, o4 and newer reasoning models use max_completion_tokens instead of max_tokens
+    if (openai_model.startswith("o1") or openai_model.startswith("o3") or 
+        openai_model.startswith("o4") or openai_model.startswith("gpt-5") or 
+        openai_model.startswith("gpt5")):
+        openai_request["max_completion_tokens"] = max_tokens_value
+    else:
+        openai_request["max_tokens"] = max_tokens_value
     logger.debug(
         f"Converted Claude request to OpenAI format: {json.dumps(openai_request, indent=2, ensure_ascii=False)}"
     )
