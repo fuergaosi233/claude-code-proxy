@@ -3,6 +3,7 @@ import uuid
 from fastapi import HTTPException, Request
 from src.core.constants import Constants
 from src.models.claude import ClaudeMessagesRequest
+from src.core.config import config
 
 
 def convert_openai_to_claude_response(
@@ -21,10 +22,49 @@ def convert_openai_to_claude_response(
     # Build Claude content blocks
     content_blocks = []
 
-    # Add text content
-    text_content = message.get("content")
-    if text_content is not None:
-        content_blocks.append({"type": Constants.CONTENT_TEXT, "text": text_content})
+    # Add content (handle both string and structured content)
+    message_content = message.get("content")
+    if message_content is not None:
+        if isinstance(message_content, str):
+            # Simple text content
+            content_blocks.append({"type": Constants.CONTENT_TEXT, "text": message_content})
+        elif isinstance(message_content, list):
+            # Structured content with potential images
+            for content_item in message_content:
+                if isinstance(content_item, dict):
+                    content_type = content_item.get("type")
+                    if content_type == "text":
+                        text = content_item.get("text", "")
+                        if text:
+                            content_blocks.append({"type": Constants.CONTENT_TEXT, "text": text})
+                    elif content_type == "image_url":
+                        # Handle image content - convert to Claude format or provide placeholder
+                        image_url = content_item.get("image_url", {}).get("url", "")
+                        if image_url.startswith("data:"):
+                            # Extract media type and base64 data
+                            try:
+                                header, base64_data = image_url.split(",", 1)
+                                media_type = header.split(":")[1].split(";")[0]
+                                content_blocks.append({
+                                    "type": Constants.CONTENT_IMAGE,
+                                    "source": {
+                                        "type": "base64",
+                                        "media_type": media_type,
+                                        "data": base64_data
+                                    }
+                                })
+                            except (ValueError, IndexError):
+                                # If parsing fails, add a text placeholder
+                                content_blocks.append({"type": Constants.CONTENT_TEXT, "text": "[Image content]"})
+                        else:
+                            # External URL - add as text placeholder since Claude doesn't support external URLs
+                            content_blocks.append({"type": Constants.CONTENT_TEXT, "text": f"[Image: {image_url}]"})
+                    else:
+                        # Unknown content type, convert to text
+                        content_blocks.append({"type": Constants.CONTENT_TEXT, "text": str(content_item)})
+        else:
+            # Fallback for other types
+            content_blocks.append({"type": Constants.CONTENT_TEXT, "text": str(message_content)})
 
     # Add tool calls
     tool_calls = message.get("tool_calls", []) or []
@@ -58,6 +98,32 @@ def convert_openai_to_claude_response(
         "function_call": Constants.STOP_TOOL_USE,
     }.get(finish_reason, Constants.STOP_END_TURN)
 
+    # Build usage data with cache token support
+    usage = openai_response.get("usage", {})
+    usage_data = {
+        "input_tokens": usage.get("input_tokens", usage.get("prompt_tokens", 0)),
+        "output_tokens": usage.get("output_tokens", usage.get("completion_tokens", 0)),
+    }
+    
+    # Handle cache token data from OpenAI response
+    if config.supports_prompt_cache:
+        # OpenAI directly provides cache_creation_input_tokens and cache_read_input_tokens
+        cache_creation_tokens = usage.get("cache_creation_input_tokens", 0)
+        cache_read_tokens = usage.get("cache_read_input_tokens", 0)
+        
+        # For backward compatibility, also check the old format
+        if cache_read_tokens == 0:
+            input_tokens_details = usage.get("input_tokens_details", {})
+            cached_tokens = input_tokens_details.get("cached_tokens", 0)
+            if cached_tokens > 0:
+                cache_read_tokens = cached_tokens
+        
+        if cache_creation_tokens > 0:
+            usage_data["cache_creation_input_tokens"] = cache_creation_tokens
+        
+        if cache_read_tokens > 0:
+            usage_data["cache_read_input_tokens"] = cache_read_tokens
+
     # Build Claude response
     claude_response = {
         "id": openai_response.get("id", f"msg_{uuid.uuid4()}"),
@@ -67,12 +133,7 @@ def convert_openai_to_claude_response(
         "content": content_blocks,
         "stop_reason": stop_reason,
         "stop_sequence": None,
-        "usage": {
-            "input_tokens": openai_response.get("usage", {}).get("prompt_tokens", 0),
-            "output_tokens": openai_response.get("usage", {}).get(
-                "completion_tokens", 0
-            ),
-        },
+        "usage": usage_data,
     }
 
     return claude_response
@@ -258,15 +319,29 @@ async def convert_openai_streaming_to_claude_with_cancellation(
                         # logger.info(f"OpenAI chunk: {chunk}")
                         usage = chunk.get("usage", None)
                         if usage:
-                            cache_read_input_tokens = 0
-                            prompt_tokens_details = usage.get('prompt_tokens_details', {})
-                            if prompt_tokens_details:
-                                cache_read_input_tokens = prompt_tokens_details.get('cached_tokens', 0)
                             usage_data = {
-                                'input_tokens': usage.get('prompt_tokens', 0),
-                                'output_tokens': usage.get('completion_tokens', 0),
-                                'cache_read_input_tokens': cache_read_input_tokens
+                                'input_tokens': usage.get('input_tokens', usage.get('prompt_tokens', 0)),
+                                'output_tokens': usage.get('output_tokens', usage.get('completion_tokens', 0)),
                             }
+                            
+                            # Handle cache token data for streaming responses
+                            if config.supports_prompt_cache:
+                                # OpenAI directly provides cache_creation_input_tokens and cache_read_input_tokens
+                                cache_creation_tokens = usage.get('cache_creation_input_tokens', 0)
+                                cache_read_tokens = usage.get('cache_read_input_tokens', 0)
+                                
+                                # For backward compatibility, also check the old format
+                                if cache_read_tokens == 0:
+                                    input_tokens_details = usage.get('input_tokens_details', {})
+                                    cached_tokens = input_tokens_details.get('cached_tokens', 0)
+                                    if cached_tokens > 0:
+                                        cache_read_tokens = cached_tokens
+                                
+                                if cache_creation_tokens > 0:
+                                    usage_data["cache_creation_input_tokens"] = cache_creation_tokens
+                                
+                                if cache_read_tokens > 0:
+                                    usage_data["cache_read_input_tokens"] = cache_read_tokens
                         choices = chunk.get("choices", [])
                         if not choices:
                             continue

@@ -66,6 +66,9 @@ line_length = 100
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
 [tool.mypy]
 python_version = "3.9"
 warn_return_any = true

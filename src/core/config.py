@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 
 # Configuration
 class Config:
@@ -30,6 +31,12 @@ class Config:
         self.middle_model = os.environ.get("MIDDLE_MODEL", self.big_model)
         self.small_model = os.environ.get("SMALL_MODEL", "gpt-4o-mini")
         
+        # Prompt cache settings
+        self.supports_prompt_cache = os.environ.get("SUPPORTS_PROMPT_CACHE", "false").lower() in ("true", "1", "yes")
+        
+        # OpenAI headers
+        self.openai_headers = self._parse_openai_headers()
+        
     def validate_api_key(self):
         """Basic API key validation"""
         if not self.openai_api_key:
@@ -47,6 +54,17 @@ class Config:
             
         # Check if the client's API key matches the expected value
         return client_api_key == self.anthropic_api_key
+    
+    def _parse_openai_headers(self):
+        """Parse OPENAI_HEADERS environment variable."""
+        openai_headers = os.environ.get("OPENAI_HEADERS")
+        if openai_headers:
+            try:
+                return json.loads(openai_headers)
+            except json.JSONDecodeError:
+                print("Warning: Invalid JSON format in OPENAI_HEADERS, ignoring.")
+                return None
+        return None
 
 try:
     config = Config()
