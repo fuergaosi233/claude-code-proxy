@@ -8,6 +8,7 @@ A proxy server that enables **Claude Code** to work with OpenAI-compatible API p
 
 - **Full Claude API Compatibility**: Complete `/v1/messages` endpoint support
 - **Multiple Provider Support**: OpenAI, Azure OpenAI, local models (Ollama), and any OpenAI-compatible API
+- **Multi-tenant Passthrough Mode**: Support for per-user OpenAI API keys 
 - **Smart Model Mapping**: Configure BIG and SMALL models via environment variables
 - **Function Calling**: Complete tool use support with proper conversion
 - **Streaming Responses**: Real-time SSE streaming support
@@ -49,12 +50,19 @@ docker compose up -d
 
 ### 4. Use with Claude Code
 
+**Proxy Mode (OPENAI_API_KEY configured):**
 ```bash
-# If ANTHROPIC_API_KEY is not set in the proxy:
-ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_API_KEY="any-value" claude
-
-# If ANTHROPIC_API_KEY is set in the proxy:
+# With client validation enabled:
 ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_API_KEY="exact-matching-key" claude
+
+# With client validation disabled:
+ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_API_KEY="any-value" claude
+```
+
+**Passthrough Mode (OPENAI_API_KEY not configured):**
+```bash
+# Users provide their own OpenAI API key:
+ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_API_KEY="sk-your-openai-api-key-here" claude
 ```
 
 ## Configuration
@@ -63,15 +71,17 @@ The application automatically loads environment variables from a `.env` file in 
 
 ### Environment Variables
 
-**Required:**
+**Core Configuration:**
 
-- `OPENAI_API_KEY` - Your API key for the target provider
+- `OPENAI_API_KEY` - Your API key for the target provider (optional)
+  - If set: Proxy mode - proxy uses this key for all requests
+  - If not set: Passthrough mode - users provide their own OpenAI API keys
 
 **Security:**
 
-- `ANTHROPIC_API_KEY` - Expected Anthropic API key for client validation
+- `ANTHROPIC_API_KEY` - Expected Anthropic API key for client validation (optional)
   - If set, clients must provide this exact API key to access the proxy
-  - If not set, any API key will be accepted
+  - If not set, client-provided API keys are used directly as OpenAI API keys (passthrough mode)
 
 **Model Configuration:**
 
