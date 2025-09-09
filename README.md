@@ -65,7 +65,10 @@ The application automatically loads environment variables from a `.env` file in 
 
 **Required:**
 
-- `OPENAI_API_KEY` - Your API key for the target provider
+- `OPENAI_API_KEY` - Your API key(s) for the target provider
+  - Single key: `OPENAI_API_KEY="sk-your-key"`
+  - Multiple keys (comma-separated): `OPENAI_API_KEY="sk-key1,sk-key2,sk-key3"`
+  - Multiple keys support automatic load balancing and failover
 
 **Security:**
 
@@ -139,6 +142,40 @@ SMALL_MODEL="llama3.1:8b"
 #### Other Providers
 
 Any OpenAI-compatible API can be used by setting the appropriate `OPENAI_BASE_URL`.
+
+## Multiple API Keys Support
+
+The proxy now supports multiple OpenAI API keys for improved reliability and load distribution:
+
+### Configuration
+
+```bash
+# Multiple keys separated by commas
+OPENAI_API_KEY="sk-key1,sk-key2,sk-key3"
+```
+
+### Features
+
+- **Load Balancing**: Requests are distributed across all available keys using round-robin
+- **Automatic Failover**: If one key fails (rate limit, auth error), the proxy automatically tries the next key
+- **Cooldown Management**: Failed keys are temporarily disabled (5 minutes by default) before being retried
+- **Status Monitoring**: Check the status of all keys via `/api-keys/status` endpoint
+
+### Monitoring API Keys
+
+```bash
+# Check status of all API keys
+curl http://localhost:8082/api-keys/status
+
+# Reset all failed keys (remove from cooldown)
+curl -X POST http://localhost:8082/api-keys/reset
+```
+
+### Benefits
+
+- **Higher Rate Limits**: Combine rate limits from multiple API keys
+- **Better Reliability**: Service continues even if some keys fail
+- **Reduced Downtime**: Automatic failover prevents service interruption
 
 ## Usage Examples
 
