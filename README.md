@@ -94,6 +94,11 @@ The application automatically loads environment variables from a `.env` file in 
 - `MAX_TOKENS_LIMIT` - Token limit (default: `4096`)
 - `REQUEST_TIMEOUT` - Request timeout in seconds (default: `90`)
 
+**SSL Configuration:**
+
+- `SSL_VERIFY` - Enable/disable SSL certificate verification (default: `true`)
+- `CA_BUNDLE_PATH` - Path to custom CA bundle for SSL verification
+
 ### Model Mapping
 
 The proxy maps Claude model requests to your configured models:
@@ -158,6 +163,22 @@ response = httpx.post(
     }
 )
 ```
+
+## SSL Certificate Issues
+
+If you encounter SSL certificate errors like `CERTIFICATE_VERIFY_FAILED`, you have two options:
+
+1. **Disable SSL verification** (not recommended for production):
+   ```bash
+   SSL_VERIFY=false python start_proxy.py
+   ```
+
+2. **Use a custom CA bundle**:
+   ```bash
+   CA_BUNDLE_PATH=/path/to/your/certificate.pem python start_proxy.py
+   ```
+
+Note: Disabling SSL verification makes your connection less secure and should only be used in trusted environments or for testing purposes.
 
 ## Integration with Claude Code
 

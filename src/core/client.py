@@ -1,5 +1,7 @@
 import asyncio
 import json
+import os
+import ssl
 from fastapi import HTTPException
 from typing import Optional, AsyncGenerator, Dict, Any
 from openai import AsyncOpenAI, AsyncAzureOpenAI
@@ -13,19 +15,44 @@ class OpenAIClient:
         self.api_key = api_key
         self.base_url = base_url
         
+        # Check for SSL configuration environment variables
+        ssl_verify = os.environ.get("SSL_VERIFY", "true").lower() == "true"
+        ca_bundle_path = os.environ.get("CA_BUNDLE_PATH")
+        
+        # Configure SSL context if needed
+        http_client = None
+        if not ssl_verify or ca_bundle_path:
+            import httpx
+            
+            # Create custom SSL context
+            ssl_context = ssl.create_default_context()
+            
+            if not ssl_verify:
+                # Disable SSL verification
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+            elif ca_bundle_path:
+                # Use custom CA bundle
+                ssl_context.load_verify_locations(cafile=ca_bundle_path)
+            
+            # Create custom HTTP client with our SSL context
+            http_client = httpx.AsyncClient(verify=ssl_context)
+        
         # Detect if using Azure and instantiate the appropriate client
         if api_version:
             self.client = AsyncAzureOpenAI(
                 api_key=api_key,
                 azure_endpoint=base_url,
                 api_version=api_version,
-                timeout=timeout
+                timeout=timeout,
+                http_client=http_client
             )
         else:
             self.client = AsyncOpenAI(
                 api_key=api_key,
                 base_url=base_url,
-                timeout=timeout
+                timeout=timeout,
+                http_client=http_client
             )
         self.active_requests: Dict[str, asyncio.Event] = {}
     
