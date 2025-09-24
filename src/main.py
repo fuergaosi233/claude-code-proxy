@@ -33,6 +33,8 @@ def main():
         print(f"  MAX_TOKENS_LIMIT - Token limit (default: 4096)")
         print(f"  MIN_TOKENS_LIMIT - Minimum token limit (default: 100)")
         print(f"  REQUEST_TIMEOUT - Request timeout in seconds (default: 90)")
+        print(f"  SSL_VERIFY - Enable/disable SSL certificate verification (default: true)")
+        print(f"  CA_BUNDLE_PATH - Path to custom CA bundle for SSL verification")
         print("")
         print("Model mapping:")
         print(f"  Claude haiku models -> {config.small_model}")
@@ -50,6 +52,15 @@ def main():
     print(f"   Request Timeout: {config.request_timeout}s")
     print(f"   Server: {config.host}:{config.port}")
     print(f"   Client API Key Validation: {'Enabled' if config.anthropic_api_key else 'Disabled'}")
+    
+    # SSL configuration
+    import os
+    ssl_verify = os.environ.get("SSL_VERIFY", "true")
+    ca_bundle_path = os.environ.get("CA_BUNDLE_PATH")
+    if ssl_verify.lower() == "false":
+        print("   SSL Verification: Disabled")
+    elif ca_bundle_path:
+        print(f"   CA Bundle Path: {ca_bundle_path}")
     print("")
 
     # Parse log level - extract just the first word to handle comments

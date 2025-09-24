@@ -207,6 +207,23 @@ async def test_connection():
         )
 
 
+@router.get("/ssl-config")
+async def ssl_config():
+    """SSL configuration endpoint"""
+    import os
+    ssl_verify = os.environ.get("SSL_VERIFY", "true")
+    ca_bundle_path = os.environ.get("CA_BUNDLE_PATH")
+    
+    return {
+        "ssl_verify": ssl_verify,
+        "ca_bundle_path": ca_bundle_path,
+        "ssl_verify_bool": ssl_verify.lower() == "true"
+    }
+
+
+@router.get("/")
+
+
 @router.get("/")
 async def root():
     """Root endpoint"""
@@ -226,5 +243,6 @@ async def root():
             "count_tokens": "/v1/messages/count_tokens",
             "health": "/health",
             "test_connection": "/test-connection",
+            "ssl_config": "/ssl-config",
         },
     }
