@@ -9,9 +9,19 @@ from openai._exceptions import APIError, RateLimitError, AuthenticationError, Ba
 class OpenAIClient:
     """Async OpenAI client with cancellation support."""
     
-    def __init__(self, api_key: str, base_url: str, timeout: int = 90, api_version: Optional[str] = None):
+    def __init__(self, api_key: str, base_url: str, timeout: int = 90, api_version: Optional[str] = None, custom_headers: Optional[Dict[str, str]] = None):
         self.api_key = api_key
         self.base_url = base_url
+        self.custom_headers = custom_headers or {}
+        
+        # Prepare default headers
+        default_headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "claude-proxy/1.0.0"
+        }
+        
+        # Merge custom headers with default headers
+        all_headers = {**default_headers, **self.custom_headers}
         
         # Detect if using Azure and instantiate the appropriate client
         if api_version:
@@ -19,13 +29,15 @@ class OpenAIClient:
                 api_key=api_key,
                 azure_endpoint=base_url,
                 api_version=api_version,
-                timeout=timeout
+                timeout=timeout,
+                default_headers=all_headers
             )
         else:
             self.client = AsyncOpenAI(
                 api_key=api_key,
                 base_url=base_url,
-                timeout=timeout
+                timeout=timeout,
+                default_headers=all_headers
             )
         self.active_requests: Dict[str, asyncio.Event] = {}
     

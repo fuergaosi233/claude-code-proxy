@@ -12,6 +12,7 @@ A proxy server that enables **Claude Code** to work with OpenAI-compatible API p
 - **Function Calling**: Complete tool use support with proper conversion
 - **Streaming Responses**: Real-time SSE streaming support
 - **Image Support**: Base64 encoded image input
+- **Custom Headers**: Automatic injection of custom HTTP headers for API requests
 - **Error Handling**: Comprehensive error handling and logging
 
 ## Quick Start
@@ -93,6 +94,65 @@ The application automatically loads environment variables from a `.env` file in 
 
 - `MAX_TOKENS_LIMIT` - Token limit (default: `4096`)
 - `REQUEST_TIMEOUT` - Request timeout in seconds (default: `90`)
+
+**Custom Headers:**
+
+- `CUSTOM_HEADER_*` - Custom headers for API requests (e.g., `CUSTOM_HEADER_ACCEPT`, `CUSTOM_HEADER_AUTHORIZATION`)
+  - Uncomment in `.env` file to enable custom headers
+
+### Custom Headers Configuration
+
+Add custom headers to your API requests by setting environment variables with the `CUSTOM_HEADER_` prefix:
+
+```bash
+# Uncomment to enable custom headers
+# CUSTOM_HEADER_ACCEPT="application/jsonstream"
+# CUSTOM_HEADER_CONTENT_TYPE="application/json"
+# CUSTOM_HEADER_USER_AGENT="your-app/1.0.0"
+# CUSTOM_HEADER_AUTHORIZATION="Bearer your-token"
+# CUSTOM_HEADER_X_API_KEY="your-api-key"
+# CUSTOM_HEADER_X_CLIENT_ID="your-client-id"
+# CUSTOM_HEADER_X_CLIENT_VERSION="1.0.0"
+# CUSTOM_HEADER_X_REQUEST_ID="unique-request-id"
+# CUSTOM_HEADER_X_TRACE_ID="trace-123"
+# CUSTOM_HEADER_X_SESSION_ID="session-456"
+```
+
+### Header Conversion Rules
+
+Environment variables with the `CUSTOM_HEADER_` prefix are automatically converted to HTTP headers:
+
+- Environment variable: `CUSTOM_HEADER_ACCEPT`
+- HTTP Header: `ACCEPT`
+
+- Environment variable: `CUSTOM_HEADER_X_API_KEY`
+- HTTP Header: `X-API-KEY`
+
+- Environment variable: `CUSTOM_HEADER_AUTHORIZATION`
+- HTTP Header: `AUTHORIZATION`
+
+### Supported Header Types
+
+- **Content Type**: `ACCEPT`, `CONTENT-TYPE`
+- **Authentication**: `AUTHORIZATION`, `X-API-KEY`
+- **Client Identification**: `USER-AGENT`, `X-CLIENT-ID`, `X-CLIENT-VERSION`
+- **Tracking**: `X-REQUEST-ID`, `X-TRACE-ID`, `X-SESSION-ID`
+
+### Usage Example
+
+```bash
+# Basic configuration
+OPENAI_API_KEY="sk-your-openai-api-key-here"
+OPENAI_BASE_URL="https://api.openai.com/v1"
+
+# Enable custom headers (uncomment as needed)
+CUSTOM_HEADER_ACCEPT="application/jsonstream"
+CUSTOM_HEADER_CONTENT_TYPE="application/json"
+CUSTOM_HEADER_USER_AGENT="my-app/1.0.0"
+CUSTOM_HEADER_AUTHORIZATION="Bearer my-token"
+```
+
+The proxy will automatically include these headers in all API requests to the target LLM provider.
 
 ### Model Mapping
 
@@ -177,7 +237,7 @@ claude
 
 ## Testing
 
-Test the proxy functionality:
+Test proxy functionality:
 
 ```bash
 # Run comprehensive tests
@@ -208,7 +268,7 @@ uv run mypy src/
 ```
 claude-code-proxy/
 ├── src/
-│   ├── main.py  # Main server
+│   ├── main.py                     # Main server
 │   ├── test_claude_to_openai.py    # Tests
 │   └── [other modules...]
 ├── start_proxy.py                  # Startup script

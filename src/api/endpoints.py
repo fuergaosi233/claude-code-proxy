@@ -17,11 +17,15 @@ from src.core.model_manager import model_manager
 
 router = APIRouter()
 
+# Get custom headers from config
+custom_headers = config.get_custom_headers()
+
 openai_client = OpenAIClient(
     config.openai_api_key,
     config.openai_base_url,
     config.request_timeout,
     api_version=config.azure_api_version,
+    custom_headers=custom_headers,
 )
 
 async def validate_api_key(x_api_key: Optional[str] = Header(None), authorization: Optional[str] = Header(None)):
