@@ -18,6 +18,8 @@ Choose your LLM provider and configure accordingly:
 #### OpenAI
 ```bash
 cp .env.example .env
+# Windows PowerShell: Copy-Item .env.example .env
+# Windows cmd.exe:    copy .env.example .env
 # Edit .env:
 # OPENAI_API_KEY="sk-your-openai-key"
 # BIG_MODEL="gpt-4o"
@@ -27,6 +29,8 @@ cp .env.example .env
 #### Azure OpenAI
 ```bash
 cp .env.example .env
+# Windows PowerShell: Copy-Item .env.example .env
+# Windows cmd.exe:    copy .env.example .env
 # Edit .env:
 # OPENAI_API_KEY="your-azure-key"
 # OPENAI_BASE_URL="https://your-resource.openai.azure.com/openai/deployments/your-deployment"
@@ -37,6 +41,8 @@ cp .env.example .env
 #### Local Models (Ollama)
 ```bash
 cp .env.example .env
+# Windows PowerShell: Copy-Item .env.example .env
+# Windows cmd.exe:    copy .env.example .env
 # Edit .env:
 # OPENAI_API_KEY="dummy-key"
 # OPENAI_BASE_URL="http://localhost:11434/v1"
@@ -49,9 +55,12 @@ cp .env.example .env
 ```bash
 # Start the proxy server
 python start_proxy.py
+# Windows alternative: .\start.ps1
 
 # In another terminal, use with Claude Code
 ANTHROPIC_BASE_URL=http://localhost:8082 claude
+# Windows PowerShell:
+#   $env:ANTHROPIC_BASE_URL="http://localhost:8082"; $env:ANTHROPIC_API_KEY="any-value"; claude
 ```
 
 ## 🎯 How It Works

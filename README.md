@@ -60,6 +60,8 @@ pip install -r requirements.txt
 ```bash
 # Copy the example configuration
 cp .env.example .env
+# Windows PowerShell: Copy-Item .env.example .env
+# Windows cmd.exe:    copy .env.example .env
 
 # Edit .env with your Azure OpenAI settings
 # Required fields for Azure OpenAI:
@@ -96,11 +98,13 @@ MAX_TOKENS_LIMIT=131072
 ```bash
 # Activate virtual environment
 source venv/bin/activate
+# On Windows PowerShell: .\venv\Scripts\Activate.ps1
 
 # Start the proxy
 python start_proxy.py
+# Windows alternative: .\start.ps1
 
-# Or use the start script
+# Or use the start script (Unix only)
 ./start.sh
 ```
 
@@ -114,6 +118,7 @@ chmod +x GPT-wrapper.sh
 
 # Run Claude Code with Azure OpenAI
 ./GPT-wrapper.sh
+# Windows PowerShell: .\GPT-wrapper.ps1
 
 # Or create an alias for convenience
 alias GPT="/path/to/claude-code-azure-proxy/GPT-wrapper.sh"
@@ -144,6 +149,7 @@ ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_API_KEY="exact-matching-key" 
 
 ```bash
 ./GPT-wrapper.sh
+# Windows PowerShell: .\GPT-wrapper.ps1
 # This automatically:
 # - Starts the proxy if not running
 # - Configures Claude Code to use the proxy
@@ -227,6 +233,7 @@ Check the proxy logs to verify requests are being sent to Azure OpenAI:
 ```bash
 # Watch the logs in real-time
 tail -f proxy.log
+# Windows PowerShell: Get-Content .\proxy.log -Wait
 
 # The logs will show:
 # - Incoming requests from Claude Code
@@ -319,6 +326,7 @@ If you see this error, your Azure deployment requires `max_completion_tokens` in
 ```bash
 # Check if dependencies are installed
 source venv/bin/activate
+# On Windows PowerShell: .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
 # Check if .env file exists and is configured
@@ -326,6 +334,7 @@ cat .env
 
 # Check for errors in the log
 tail -f proxy.log
+# Windows PowerShell: Get-Content .\proxy.log -Wait
 ```
 
 ### Connection Refused
@@ -333,13 +342,18 @@ tail -f proxy.log
 ```bash
 # Verify proxy is running
 ps aux | grep "python.*start_proxy"
+# Windows PowerShell: Get-Process python | Where-Object { $_.Path -like '*python*' }
 
 # Check if port 8082 is in use
 lsof -i :8082
+# Windows PowerShell: netstat -ano | Select-String ":8082"
 
 # Restart the proxy
 kill $(cat .proxy.pid)
 ./start.sh
+# Windows PowerShell:
+#   Stop-Process -Id (Get-Content .\.proxy.pid)
+#   .\start.ps1
 ```
 
 ### Stale Python Cache
@@ -349,10 +363,15 @@ If you make code changes and they're not reflected:
 ```bash
 # Clear Python bytecode cache
 find . -type d -name __pycache__ -exec rm -rf {} +
+# Windows PowerShell:
+#   Get-ChildItem -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
 
 # Restart the proxy
 kill $(cat .proxy.pid)
 ./start.sh
+# Windows PowerShell:
+#   Stop-Process -Id (Get-Content .\.proxy.pid)
+#   .\start.ps1
 ```
 
 ## Development
