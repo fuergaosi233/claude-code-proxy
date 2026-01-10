@@ -74,4 +74,26 @@ export ANTHROPIC_API_KEY=""
 export CLAUDE_CODE_MAX_OUTPUT_TOKENS="128000"
 export MAX_THINKING_TOKENS="64000"
 
-claude --dangerously-skip-permissions "$@"
+# Check if running as root and drop privileges if needed
+if [ "$EUID" -eq 0 ]; then
+    # Running as root - drop privileges to the original user
+    if [ -n "$SUDO_USER" ]; then
+        # Was invoked via sudo, drop back to that user
+        exec sudo -u "$SUDO_USER" \
+            HOME="$GPT_CONFIG_DIR" \
+            ANTHROPIC_BASE_URL="http://localhost:$PROXY_PORT" \
+            ANTHROPIC_AUTH_TOKEN="proxy-mode" \
+            ANTHROPIC_API_KEY="" \
+            CLAUDE_CODE_MAX_OUTPUT_TOKENS="128000" \
+            MAX_THINKING_TOKENS="64000" \
+            claude --dangerously-skip-permissions "$@"
+    else
+        # Actually logged in as root - show warning and exit
+        echo "⚠️  ERROR: Running as root without sudo is not supported."
+        echo "This script must be run as a regular user or via sudo."
+        exit 1
+    fi
+else
+    # Running as regular user - proceed normally
+    claude --dangerously-skip-permissions "$@"
+fi
