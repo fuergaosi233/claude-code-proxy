@@ -30,7 +30,7 @@ A proxy server that enables **Claude Code** to work with Azure OpenAI and other 
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR-USERNAME/claude-code-azure-proxy.git
+git clone https://github.com/schwarztim/claude-code-azure-proxy.git
 cd claude-code-azure-proxy
 
 # Create virtual environment
