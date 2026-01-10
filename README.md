@@ -285,6 +285,29 @@ SMALL_MODEL=llama3.1:8b
 
 ## Troubleshooting
 
+### "sudo: no tty present" or "sudo: a terminal is required" Errors
+
+When Claude Code tries to run sudo commands, it may fail because there's no interactive terminal for password prompts.
+
+**Solutions:**
+1. **Manual approach**: Copy the command and run it yourself in a terminal
+2. **Passwordless sudo**: Configure specific commands to run without passwords (recommended)
+3. **Full guide**: See [SUDO_SETUP.md](SUDO_SETUP.md) for detailed instructions
+
+**Quick passwordless setup for common commands:**
+```bash
+# Create sudoers file for Claude Code
+sudo visudo -f /etc/sudoers.d/claude-code
+
+# Add these lines (replace 'youruser' with your username):
+youruser ALL=(ALL) NOPASSWD: /usr/bin/mkdir
+youruser ALL=(ALL) NOPASSWD: /usr/bin/systemctl
+youruser ALL=(ALL) NOPASSWD: /usr/bin/pacman -S*
+youruser ALL=(ALL) NOPASSWD: /usr/bin/apt install *
+```
+
+See [SUDO_SETUP.md](SUDO_SETUP.md) for security considerations and more options.
+
 ### "Unsupported parameter: 'max_tokens'" Error
 
 If you see this error, your Azure deployment requires `max_completion_tokens` instead of `max_tokens`. This proxy automatically handles this for newer Azure API versions.
