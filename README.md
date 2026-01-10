@@ -24,6 +24,20 @@ A proxy server that enables **Claude Code** to work with Azure OpenAI and other 
 - **Wrapper Scripts**: Easy-to-use bash wrapper scripts for seamless integration
 - **Error Handling**: Comprehensive error handling and logging
 
+## Prerequisites
+
+Before using this proxy, you need:
+
+1. **Python 3.8+** - For running the proxy server
+2. **Claude Code CLI** - The CLI tool this proxy works with
+   - Install from: https://claude.ai/code
+   - Or via npm: `npm install -g @anthropics/claude-code`
+   - Verify installation: `claude --version`
+3. **Azure OpenAI Access** (or another OpenAI-compatible API)
+   - Azure OpenAI resource with deployments
+   - API key and endpoint URL
+4. **Git** - For cloning the repository
+
 ## Quick Start
 
 ### 1. Clone and Install
