@@ -183,13 +183,15 @@ To re-enable, just run `./setup-sudo.sh` again.
 
 ## Aliases Setup
 
-The aliases are defined in `~/.bashrc_custom`:
+### Linux/macOS (bash/zsh)
+
+The aliases are defined in your shell config (example uses `~/.bashrc_custom`):
 
 ```bash
-alias gpt='/home/tim/claude-code-proxy/gpt-wrapper.sh'
-alias GPT='/home/tim/claude-code-proxy/GPT-wrapper.sh'
-alias sudo-gpt='/home/tim/claude-code-proxy/sudo-gpt-wrapper.sh'
-alias sudo-GPT='/home/tim/claude-code-proxy/sudo-GPT-wrapper.sh'
+alias gpt='/path/to/claude-code-azure-proxy/gpt-wrapper.sh'
+alias GPT='/path/to/claude-code-azure-proxy/GPT-wrapper.sh'
+alias sudo-gpt='/path/to/claude-code-azure-proxy/sudo-gpt-wrapper.sh'
+alias sudo-GPT='/path/to/claude-code-azure-proxy/sudo-GPT-wrapper.sh'
 ```
 
 After any changes, reload with:
@@ -197,13 +199,33 @@ After any changes, reload with:
 source ~/.bashrc
 ```
 
+### Windows PowerShell
+
+Add functions to your PowerShell profile (`$PROFILE`):
+
+```powershell
+function gpt { & "C:\path\to\claude-code-azure-proxy\gpt-wrapper.ps1" @Args }
+function GPT { & "C:\path\to\claude-code-azure-proxy\GPT-wrapper.ps1" @Args }
+```
+
+Or use the provided `.cmd` launchers:
+
+```bat
+C:\path\to\claude-code-azure-proxy\gpt-wrapper.cmd
+C:\path\to\claude-code-azure-proxy\GPT-wrapper.cmd
+```
+
 ## Files
 
-- `gpt-wrapper.sh` - Regular, asks for permissions
-- `GPT-wrapper.sh` - Regular, skip permissions
-- `sudo-gpt-wrapper.sh` - Sudo-enabled, asks for permissions
-- `sudo-GPT-wrapper.sh` - Sudo-enabled, skip permissions
-- `setup-sudo.sh` - Configure passwordless sudo
+- `gpt-wrapper.sh` - Regular, asks for permissions (Linux/macOS)
+- `GPT-wrapper.sh` - Skip permissions (Linux/macOS)
+- `gpt-wrapper.ps1` - Regular, asks for permissions (Windows)
+- `GPT-wrapper.ps1` - Skip permissions (Windows)
+- `gpt-wrapper.cmd` - cmd.exe launcher for `gpt-wrapper.ps1`
+- `GPT-wrapper.cmd` - cmd.exe launcher for `GPT-wrapper.ps1`
+- `sudo-gpt-wrapper.sh` - Sudo-enabled, asks for permissions (Linux)
+- `sudo-GPT-wrapper.sh` - Sudo-enabled, skip permissions (Linux)
+- `setup-sudo.sh` - Configure passwordless sudo (Linux)
 - `SUDO_SETUP.md` - Detailed sudo security guide
 
 ## FAQ

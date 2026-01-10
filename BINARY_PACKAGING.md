@@ -141,8 +141,13 @@ export LOG_LEVEL="INFO"
 # Run in foreground
 OPENAI_API_KEY="your-key" ./claude-code-proxy
 
-# Run in background
+# Run in background (Linux/macOS)
 OPENAI_API_KEY="your-key" nohup ./claude-code-proxy &
+
+# Windows PowerShell (foreground)
+#   $env:OPENAI_API_KEY="your-key"; .\claude-code-proxy.exe
+# Windows PowerShell (background)
+#   $env:OPENAI_API_KEY="your-key"; Start-Process -FilePath .\claude-code-proxy.exe
 ```
 
 ## Deployment Instructions
@@ -232,8 +237,13 @@ CMD ["claude-code-proxy"]
    ```bash
    # Find process using port
    lsof -i :8082
+   # Windows PowerShell:
+   #   netstat -ano | Select-String ":8082"
+
    # Or use different port
    PORT=8083 ./claude-code-proxy
+   # Windows PowerShell:
+   #   $env:PORT="8083"; .\claude-code-proxy.exe
    ```
 
 5. **Insufficient Memory**
