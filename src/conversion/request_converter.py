@@ -77,7 +77,7 @@ def convert_claude_to_openai(
     openai_request = {
         "model": openai_model,
         "messages": openai_messages,
-        "max_tokens": min(
+        "max_completion_tokens": min(
             max(claude_request.max_tokens, config.min_tokens_limit),
             config.max_tokens_limit,
         ),

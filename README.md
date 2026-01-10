@@ -1,88 +1,172 @@
-# Claude Code Proxy
+# Claude Code Azure Proxy
 
-A proxy server that enables **Claude Code** to work with OpenAI-compatible API providers. Convert Claude API requests to OpenAI API calls, allowing you to use various LLM providers through the Claude Code CLI.
+A proxy server that enables **Claude Code** to work with Azure OpenAI and other OpenAI-compatible API providers. Convert Claude API requests to OpenAI/Azure OpenAI API calls, allowing you to use various LLM providers through the Claude Code CLI.
 
 ![Claude Code Proxy](demo.png)
+
+## Why Use This?
+
+- **Use Claude Code with Azure OpenAI**: Perfect for enterprise environments or regions where Claude API is not available
+- **Cost Optimization**: Use Azure OpenAI credits or enterprise agreements with Claude Code
+- **Privacy**: Keep your data within your Azure tenant
+- **Flexibility**: Support for any OpenAI-compatible API (OpenAI, Azure OpenAI, local models via Ollama, etc.)
 
 ## Features
 
 - **Full Claude API Compatibility**: Complete `/v1/messages` endpoint support
+- **Azure OpenAI Support**: First-class support for Azure OpenAI with proper API version handling
 - **Multiple Provider Support**: OpenAI, Azure OpenAI, local models (Ollama), and any OpenAI-compatible API
-- **Smart Model Mapping**: Configure BIG and SMALL models via environment variables
+- **Smart Model Mapping**: Configure BIG/MIDDLE/SMALL models via environment variables
 - **Function Calling**: Complete tool use support with proper conversion
 - **Streaming Responses**: Real-time SSE streaming support
 - **Image Support**: Base64 encoded image input
 - **Custom Headers**: Automatic injection of custom HTTP headers for API requests
+- **Wrapper Scripts**: Easy-to-use bash wrapper scripts for seamless integration
 - **Error Handling**: Comprehensive error handling and logging
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Clone and Install
 
 ```bash
-# Using UV (recommended)
-uv sync
+# Clone the repository
+git clone https://github.com/YOUR-USERNAME/claude-code-azure-proxy.git
+cd claude-code-azure-proxy
 
-# Or using pip
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Configure
+### 2. Configure for Azure OpenAI
 
 ```bash
+# Copy the example configuration
 cp .env.example .env
-# Edit .env and add your API configuration
-# Note: Environment variables are automatically loaded from .env file
+
+# Edit .env with your Azure OpenAI settings
+# Required fields for Azure OpenAI:
+# - OPENAI_API_KEY: Your Azure OpenAI API key
+# - OPENAI_BASE_URL: Your Azure OpenAI endpoint (e.g., https://your-resource.openai.azure.com/)
+# - AZURE_API_VERSION: API version (e.g., 2024-08-01-preview)
+# - BIG_MODEL, MIDDLE_MODEL, SMALL_MODEL: Your Azure deployment names
 ```
 
-### 3. Start Server
+**Example `.env` for Azure OpenAI:**
 
 ```bash
-# Direct run
+# Azure OpenAI Configuration
+OPENAI_API_KEY=your-azure-api-key-here
+OPENAI_BASE_URL=https://your-resource-name.openai.azure.com/
+
+# Azure-specific setting (triggers AsyncAzureOpenAI client)
+AZURE_API_VERSION=2024-08-01-preview
+
+# Model Mapping - Use your Azure deployment names
+BIG_MODEL=gpt-4
+MIDDLE_MODEL=gpt-4
+SMALL_MODEL=gpt-35-turbo
+
+# Optional: Server Configuration
+REQUEST_TIMEOUT=300
+MAX_TOKENS_LIMIT=131072
+```
+
+### 3. Start the Proxy
+
+**Option A: Manual Start**
+
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Start the proxy
 python start_proxy.py
 
-# Or with UV
-uv run claude-code-proxy
+# Or use the start script
+./start.sh
+```
 
-# Or with docker compose
+**Option B: Use the Wrapper Script (Recommended)**
+
+The wrapper script automatically manages the proxy and launches Claude Code:
+
+```bash
+# Make wrapper executable (first time only)
+chmod +x GPT-wrapper.sh
+
+# Run Claude Code with Azure OpenAI
+./GPT-wrapper.sh
+
+# Or create an alias for convenience
+alias GPT="/path/to/claude-code-azure-proxy/GPT-wrapper.sh"
+
+# Then just run:
+GPT
+```
+
+**Option C: Docker**
+
+```bash
 docker compose up -d
 ```
 
 ### 4. Use with Claude Code
 
+**Method 1: Using Environment Variables**
+
 ```bash
 # If ANTHROPIC_API_KEY is not set in the proxy:
 ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_API_KEY="any-value" claude
 
-# If ANTHROPIC_API_KEY is set in the proxy:
+# If ANTHROPIC_API_KEY is set in the proxy for validation:
 ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_API_KEY="exact-matching-key" claude
+```
+
+**Method 2: Using the Wrapper Script (Easiest)**
+
+```bash
+./GPT-wrapper.sh
+# This automatically:
+# - Starts the proxy if not running
+# - Configures Claude Code to use the proxy
+# - Launches Claude Code with proper settings
 ```
 
 ## Configuration
 
-The application automatically loads environment variables from a `.env` file in the project root using `python-dotenv`. You can also set environment variables directly in your shell.
+The application automatically loads environment variables from a `.env` file in the project root using `python-dotenv`.
 
 ### Environment Variables
 
 **Required:**
 
-- `OPENAI_API_KEY` - Your API key for the target provider
+- `OPENAI_API_KEY` - Your API key (Azure API key or OpenAI API key)
 
-**Security:**
+**Azure OpenAI Specific:**
 
-- `ANTHROPIC_API_KEY` - Expected Anthropic API key for client validation
-  - If set, clients must provide this exact API key to access the proxy
-  - If not set, any API key will be accepted
+- `OPENAI_BASE_URL` - Your Azure OpenAI endpoint (e.g., `https://your-resource.openai.azure.com/`)
+- `AZURE_API_VERSION` - Azure API version (e.g., `2024-08-01-preview`)
+  - When this is set, the proxy uses Azure OpenAI client
+  - Required for Azure OpenAI compatibility
 
 **Model Configuration:**
 
-- `BIG_MODEL` - Model for Claude opus requests (default: `gpt-4o`)
-- `MIDDLE_MODEL` - Model for Claude opus requests (default: `gpt-4o`)
-- `SMALL_MODEL` - Model for Claude haiku requests (default: `gpt-4o-mini`)
+- `BIG_MODEL` - Model for Claude Opus requests (default: `gpt-4o`)
+  - For Azure: Use your deployment name (e.g., `gpt-4`)
+- `MIDDLE_MODEL` - Model for Claude Sonnet requests (default: `gpt-4o`)
+  - For Azure: Use your deployment name (e.g., `gpt-4`)
+- `SMALL_MODEL` - Model for Claude Haiku requests (default: `gpt-4o-mini`)
+  - For Azure: Use your deployment name (e.g., `gpt-35-turbo`)
 
-**API Configuration:**
+**Security:**
 
-- `OPENAI_BASE_URL` - API base URL (default: `https://api.openai.com/v1`)
+- `ANTHROPIC_API_KEY` - Expected API key for client validation (optional)
+  - If set, clients must provide this exact API key
+  - If not set, any API key will be accepted
 
 **Server Settings:**
 
@@ -92,198 +176,206 @@ The application automatically loads environment variables from a `.env` file in 
 
 **Performance:**
 
-- `MAX_TOKENS_LIMIT` - Token limit (default: `4096`)
+- `MAX_TOKENS_LIMIT` - Maximum tokens limit (default: `4096`)
+- `MIN_TOKENS_LIMIT` - Minimum tokens limit (default: `4096`)
 - `REQUEST_TIMEOUT` - Request timeout in seconds (default: `90`)
+- `MAX_RETRIES` - Maximum retry attempts (default: `2`)
 
 **Custom Headers:**
 
-- `CUSTOM_HEADER_*` - Custom headers for API requests (e.g., `CUSTOM_HEADER_ACCEPT`, `CUSTOM_HEADER_AUTHORIZATION`)
-  - Uncomment in `.env` file to enable custom headers
+- `CUSTOM_HEADER_*` - Custom headers for API requests
+  - Format: `CUSTOM_HEADER_<NAME>=value`
+  - Example: `CUSTOM_HEADER_X_API_KEY=your-key`
 
-### Custom Headers Configuration
+## Wrapper Scripts
 
-Add custom headers to your API requests by setting environment variables with the `CUSTOM_HEADER_` prefix:
+Two wrapper scripts are provided for easy integration:
 
-```bash
-# Uncomment to enable custom headers
-# CUSTOM_HEADER_ACCEPT="application/jsonstream"
-# CUSTOM_HEADER_CONTENT_TYPE="application/json"
-# CUSTOM_HEADER_USER_AGENT="your-app/1.0.0"
-# CUSTOM_HEADER_AUTHORIZATION="Bearer your-token"
-# CUSTOM_HEADER_X_API_KEY="your-api-key"
-# CUSTOM_HEADER_X_CLIENT_ID="your-client-id"
-# CUSTOM_HEADER_X_CLIENT_VERSION="1.0.0"
-# CUSTOM_HEADER_X_REQUEST_ID="unique-request-id"
-# CUSTOM_HEADER_X_TRACE_ID="trace-123"
-# CUSTOM_HEADER_X_SESSION_ID="session-456"
-```
+### GPT-wrapper.sh (Recommended)
+- Uses `--dangerously-skip-permissions` flag for direct execution
+- Larger context window configuration (128K output tokens)
+- Isolated Claude Code config in `.claude-gpt-config/`
 
-### Header Conversion Rules
+### gpt-wrapper.sh
+- Standard Claude Code behavior
+- Prompts for permission as normal
 
-Environment variables with the `CUSTOM_HEADER_` prefix are automatically converted to HTTP headers:
+Both scripts:
+- Automatically start/manage the proxy process
+- Detect if proxy is already running
+- Use the script's directory (no hardcoded paths)
+- Log output to `proxy.log` for debugging
 
-- Environment variable: `CUSTOM_HEADER_ACCEPT`
-- HTTP Header: `ACCEPT`
+## Monitoring
 
-- Environment variable: `CUSTOM_HEADER_X_API_KEY`
-- HTTP Header: `X-API-KEY`
-
-- Environment variable: `CUSTOM_HEADER_AUTHORIZATION`
-- HTTP Header: `AUTHORIZATION`
-
-### Supported Header Types
-
-- **Content Type**: `ACCEPT`, `CONTENT-TYPE`
-- **Authentication**: `AUTHORIZATION`, `X-API-KEY`
-- **Client Identification**: `USER-AGENT`, `X-CLIENT-ID`, `X-CLIENT-VERSION`
-- **Tracking**: `X-REQUEST-ID`, `X-TRACE-ID`, `X-SESSION-ID`
-
-### Usage Example
+Check the proxy logs to verify requests are being sent to Azure OpenAI:
 
 ```bash
-# Basic configuration
-OPENAI_API_KEY="sk-your-openai-api-key-here"
-OPENAI_BASE_URL="https://api.openai.com/v1"
+# Watch the logs in real-time
+tail -f proxy.log
 
-# Enable custom headers (uncomment as needed)
-CUSTOM_HEADER_ACCEPT="application/jsonstream"
-CUSTOM_HEADER_CONTENT_TYPE="application/json"
-CUSTOM_HEADER_USER_AGENT="my-app/1.0.0"
-CUSTOM_HEADER_AUTHORIZATION="Bearer my-token"
+# The logs will show:
+# - Incoming requests from Claude Code
+# - Conversion from Claude to OpenAI format
+# - Requests to your Azure OpenAI endpoint
+# - Response handling
 ```
 
-The proxy will automatically include these headers in all API requests to the target LLM provider.
+## Azure OpenAI Examples
 
-### Model Mapping
-
-The proxy maps Claude model requests to your configured models:
-
-| Claude Request                 | Mapped To     | Environment Variable   |
-| ------------------------------ | ------------- | ---------------------- |
-| Models with "haiku"            | `SMALL_MODEL` | Default: `gpt-4o-mini` |
-| Models with "sonnet"           | `MIDDLE_MODEL`| Default: `BIG_MODEL`   |
-| Models with "opus"             | `BIG_MODEL`   | Default: `gpt-4o`      |
-
-### Provider Examples
-
-#### OpenAI
+### Example 1: Standard Azure OpenAI Setup
 
 ```bash
-OPENAI_API_KEY="sk-your-openai-key"
-OPENAI_BASE_URL="https://api.openai.com/v1"
-BIG_MODEL="gpt-4o"
-MIDDLE_MODEL="gpt-4o"
-SMALL_MODEL="gpt-4o-mini"
+# .env configuration
+OPENAI_API_KEY=abc123def456...
+OPENAI_BASE_URL=https://my-company.openai.azure.com/
+AZURE_API_VERSION=2024-08-01-preview
+BIG_MODEL=gpt-4-deployment
+MIDDLE_MODEL=gpt-4-deployment
+SMALL_MODEL=gpt-35-turbo-deployment
 ```
 
-#### Azure OpenAI
+### Example 2: Multiple Azure Deployments
 
 ```bash
-OPENAI_API_KEY="your-azure-key"
-OPENAI_BASE_URL="https://your-resource.openai.azure.com/openai/deployments/your-deployment"
-BIG_MODEL="gpt-4"
-MIDDLE_MODEL="gpt-4"
-SMALL_MODEL="gpt-35-turbo"
+# .env configuration
+OPENAI_API_KEY=abc123def456...
+OPENAI_BASE_URL=https://my-company.openai.azure.com/
+AZURE_API_VERSION=2024-08-01-preview
+BIG_MODEL=gpt-4-turbo-deployment
+MIDDLE_MODEL=gpt-4-deployment
+SMALL_MODEL=gpt-35-turbo-16k-deployment
 ```
 
-#### Local Models (Ollama)
+## Other Provider Examples
+
+### OpenAI
 
 ```bash
-OPENAI_API_KEY="dummy-key"  # Required but can be dummy
-OPENAI_BASE_URL="http://localhost:11434/v1"
-BIG_MODEL="llama3.1:70b"
-MIDDLE_MODEL="llama3.1:70b"
-SMALL_MODEL="llama3.1:8b"
+OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://api.openai.com/v1
+BIG_MODEL=gpt-4o
+MIDDLE_MODEL=gpt-4o
+SMALL_MODEL=gpt-4o-mini
 ```
 
-#### Other Providers
-
-Any OpenAI-compatible API can be used by setting the appropriate `OPENAI_BASE_URL`.
-
-## Usage Examples
-
-### Basic Chat
-
-```python
-import httpx
-
-response = httpx.post(
-    "http://localhost:8082/v1/messages",
-    json={
-        "model": "claude-3-5-sonnet-20241022",  # Maps to MIDDLE_MODEL
-        "max_tokens": 100,
-        "messages": [
-            {"role": "user", "content": "Hello!"}
-        ]
-    }
-)
-```
-
-## Integration with Claude Code
-
-This proxy is designed to work seamlessly with Claude Code CLI:
+### Local Models (Ollama)
 
 ```bash
-# Start the proxy
-python start_proxy.py
-
-# Use Claude Code with the proxy
-ANTHROPIC_BASE_URL=http://localhost:8082 claude
-
-# Or set permanently
-export ANTHROPIC_BASE_URL=http://localhost:8082
-claude
+OPENAI_API_KEY=dummy-key
+OPENAI_BASE_URL=http://localhost:11434/v1
+BIG_MODEL=llama3.1:70b
+MIDDLE_MODEL=llama3.1:70b
+SMALL_MODEL=llama3.1:8b
 ```
 
-## Testing
+## Troubleshooting
 
-Test proxy functionality:
+### "Unsupported parameter: 'max_tokens'" Error
+
+If you see this error, your Azure deployment requires `max_completion_tokens` instead of `max_tokens`. This proxy automatically handles this for newer Azure API versions.
+
+**Solution:** Ensure your `AZURE_API_VERSION` is set to `2024-08-01-preview` or later.
+
+### Proxy Not Starting
 
 ```bash
-# Run comprehensive tests
-python src/test_claude_to_openai.py
+# Check if dependencies are installed
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Check if .env file exists and is configured
+cat .env
+
+# Check for errors in the log
+tail -f proxy.log
+```
+
+### Connection Refused
+
+```bash
+# Verify proxy is running
+ps aux | grep "python.*start_proxy"
+
+# Check if port 8082 is in use
+lsof -i :8082
+
+# Restart the proxy
+kill $(cat .proxy.pid)
+./start.sh
+```
+
+### Stale Python Cache
+
+If you make code changes and they're not reflected:
+
+```bash
+# Clear Python bytecode cache
+find . -type d -name __pycache__ -exec rm -rf {} +
+
+# Restart the proxy
+kill $(cat .proxy.pid)
+./start.sh
 ```
 
 ## Development
 
-### Using UV
-
-```bash
-# Install dependencies
-uv sync
-
-# Run server
-uv run claude-code-proxy
-
-# Format code
-uv run black src/
-uv run isort src/
-
-# Type checking
-uv run mypy src/
-```
-
 ### Project Structure
 
 ```
-claude-code-proxy/
+claude-code-azure-proxy/
 ├── src/
-│   ├── main.py                     # Main server
-│   ├── test_claude_to_openai.py    # Tests
-│   └── [other modules...]
-├── start_proxy.py                  # Startup script
-├── .env.example                    # Config template
-└── README.md                       # This file
+│   ├── api/           # API endpoints
+│   ├── conversion/    # Request/response converters
+│   ├── core/          # Core functionality (client, config)
+│   └── models/        # Data models
+├── tests/             # Test files
+├── .env.example       # Example configuration
+├── start.sh           # Manual start script
+├── GPT-wrapper.sh     # Wrapper script (skip permissions)
+├── gpt-wrapper.sh     # Wrapper script (standard)
+└── start_proxy.py     # Entry point
 ```
 
-## Performance
+### Running Tests
 
-- **Async/await** for high concurrency
-- **Connection pooling** for efficiency
-- **Streaming support** for real-time responses
-- **Configurable timeouts** and retries
-- **Smart error handling** with detailed logging
+```bash
+pytest
+```
+
+### Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## Security Considerations
+
+**Important Security Notes:**
+
+1. **Never commit your `.env` file** - It contains sensitive API keys
+2. **Azure Endpoints**: Your Azure endpoint URL is specific to your organization
+3. **API Keys**: Rotate your API keys regularly
+4. **Network Security**: Consider restricting proxy access to localhost only
+5. **Logging**: Be aware that debug logging may contain sensitive information
+
+The `.gitignore` file is configured to exclude:
+- `.env` (your actual configuration with secrets)
+- `.proxy.pid` (process ID file)
+- `.claude-gpt-config/` (Claude Code config directory)
+- `proxy.log` (may contain sensitive request data)
 
 ## License
 
-MIT License
+MIT License - See LICENSE file for details
+
+## Credits
+
+Based on [claude-code-proxy](https://github.com/fuergaosi233/claude-code-proxy) by fuergaosi233
+
+## Support
+
+For issues, questions, or contributions, please open an issue on GitHub.
