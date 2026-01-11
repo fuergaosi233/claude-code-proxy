@@ -7,7 +7,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
 # Activate the virtual environment
-source venv/bin/activate
+source .venv/bin/activate
 
 # Load environment variables from .env file
 if [ -f .env ]; then
