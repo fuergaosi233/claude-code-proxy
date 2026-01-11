@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # sudo-gpt: Claude Code with sudo access (asks for permissions)
-# This variant allows sudo commands to execute with NOPASSWD if configured
-# Requires: /etc/sudoers.d/claude-code to be set up (run ./setup-sudo.sh)
+# Requires: passwordless sudo (run ./setup-sudo.sh first)
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROXY_DIR="$SCRIPT_DIR"
@@ -11,28 +10,17 @@ PID_FILE="$PROXY_DIR/.proxy.pid"
 GPT_CONFIG_DIR="$PROXY_DIR/.claude-gpt-config"
 ORIGINAL_PWD="$(pwd)"
 
-# Check if NOPASSWD is configured
 if ! sudo -n true 2>/dev/null; then
-    echo "⚠️  WARNING: sudo-gpt requires passwordless sudo to be configured"
-    echo ""
-    echo "Claude Code will fail when trying to run sudo commands."
-    echo ""
-    echo "To enable sudo support, run:"
-    echo "  cd $PROXY_DIR"
-    echo "  ./setup-sudo.sh"
-    echo ""
-    echo "Or use regular 'gpt' command if you don't need sudo."
-    echo ""
+    echo "WARNING: sudo-gpt requires passwordless sudo"
+    echo "Run: ./setup-sudo.sh"
     read -p "Continue anyway? (yes/no): " confirm
     if [ "$confirm" != "yes" ]; then
         exit 0
     fi
 fi
 
-# Create separate config directory
 mkdir -p "$GPT_CONFIG_DIR"
 
-# Function to check if proxy is running
 is_proxy_running() {
     if [ -f "$PID_FILE" ]; then
         PID=$(cat "$PID_FILE")
@@ -46,12 +34,11 @@ is_proxy_running() {
     return 1
 }
 
-# Function to start the proxy in the background
 start_proxy() {
     echo "Starting Claude Code Proxy (Azure OpenAI)..."
     (
         cd "$PROXY_DIR"
-        source venv/bin/activate
+        source .venv/bin/activate
         nohup python start_proxy.py > "$PROXY_DIR/proxy.log" 2>&1 &
         echo $! > "$PID_FILE"
     )
@@ -63,14 +50,12 @@ start_proxy() {
     fi
 }
 
-# Check if proxy is running, start if not
 if ! is_proxy_running; then
     start_proxy
 fi
 
 cd "$ORIGINAL_PWD"
 
-# Run claude with proxy settings (WITH permission prompts)
 export HOME="$GPT_CONFIG_DIR"
 export ANTHROPIC_BASE_URL="http://localhost:$PROXY_PORT"
 export ANTHROPIC_AUTH_TOKEN="proxy-mode"
@@ -78,7 +63,6 @@ export ANTHROPIC_API_KEY=""
 export CLAUDE_CODE_MAX_OUTPUT_TOKENS="128000"
 export MAX_THINKING_TOKENS="64000"
 
-# Check if running as root and drop privileges if needed
 if [ "$EUID" -eq 0 ]; then
     if [ -n "$SUDO_USER" ]; then
         exec sudo -u "$SUDO_USER" \
@@ -90,7 +74,7 @@ if [ "$EUID" -eq 0 ]; then
             MAX_THINKING_TOKENS="64000" \
             claude "$@"
     else
-        echo "⚠️  ERROR: Running as root without sudo is not supported."
+        echo "ERROR: Running as root without sudo is not supported."
         exit 1
     fi
 else
