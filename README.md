@@ -4,6 +4,33 @@ A proxy server that enables **Claude Code** to work with Azure OpenAI and other 
 
 ![Claude Code Proxy](demo.png)
 
+## Two Ways to Use This
+
+### Option 1: Claude Code Plugin (Recommended - Easy Setup)
+
+Install as a Claude Code plugin for seamless integration with automatic proxy management:
+
+```bash
+# Install the plugin
+claude plugin install schwarztim/claude-code-azure-proxy
+
+# Run setup wizard
+claude
+> /azure-openai setup
+
+# That's it! Use Claude Code normally
+```
+
+See [PLUGIN.md](PLUGIN.md) for complete plugin documentation.
+
+### Option 2: Manual Proxy Setup (Advanced)
+
+Run the proxy server manually and configure Claude Code to use it. Provides more control but requires manual management.
+
+Continue reading this README for manual setup instructions.
+
+---
+
 ## Why Use This?
 
 - **Use Claude Code with Azure OpenAI**: Perfect for enterprise environments or regions where Claude API is not available

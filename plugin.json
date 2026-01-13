@@ -1,0 +1,82 @@
+{
+  "name": "azure-openai",
+  "version": "1.0.0",
+  "description": "Azure OpenAI integration for Claude Code - Use Azure OpenAI and other OpenAI-compatible providers with Claude Code",
+  "author": "schwarztim",
+  "homepage": "https://github.com/schwarztim/claude-code-azure-proxy",
+  "license": "MIT",
+  "keywords": ["azure", "openai", "provider", "proxy", "enterprise"],
+  "skills": [
+    {
+      "name": "azure-openai",
+      "description": "Manage Azure OpenAI proxy for Claude Code",
+      "prompt": "skills/azure-openai.md"
+    }
+  ],
+  "hooks": {
+    "sessionStart": "hooks/session-start.sh"
+  },
+  "settings": {
+    "azureOpenAI": {
+      "type": "object",
+      "description": "Azure OpenAI configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable Azure OpenAI proxy",
+          "default": false
+        },
+        "autoStart": {
+          "type": "boolean",
+          "description": "Automatically start proxy on session start",
+          "default": true
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "Azure OpenAI API key",
+          "secret": true
+        },
+        "baseUrl": {
+          "type": "string",
+          "description": "Azure OpenAI endpoint URL (e.g., https://your-resource.openai.azure.com/)",
+          "default": ""
+        },
+        "apiVersion": {
+          "type": "string",
+          "description": "Azure API version",
+          "default": "2024-08-01-preview"
+        },
+        "bigModel": {
+          "type": "string",
+          "description": "Model deployment for Claude Opus requests",
+          "default": "gpt-4"
+        },
+        "middleModel": {
+          "type": "string",
+          "description": "Model deployment for Claude Sonnet requests",
+          "default": "gpt-4"
+        },
+        "smallModel": {
+          "type": "string",
+          "description": "Model deployment for Claude Haiku requests",
+          "default": "gpt-35-turbo"
+        },
+        "proxyPort": {
+          "type": "number",
+          "description": "Local proxy server port",
+          "default": 8082
+        },
+        "maxTokens": {
+          "type": "number",
+          "description": "Maximum tokens limit",
+          "default": 131072
+        },
+        "requestTimeout": {
+          "type": "number",
+          "description": "Request timeout in seconds",
+          "default": 300
+        }
+      }
+    }
+  }
+}
