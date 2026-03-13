@@ -1,7 +1,9 @@
-from fastapi import FastAPI
-from src.api.endpoints import router as api_router
-import uvicorn
 import sys
+
+import uvicorn
+from fastapi import FastAPI
+
+from src.api.endpoints import router as api_router
 from src.core.config import config
 
 app = FastAPI(title="Claude-to-OpenAI API Proxy", version="1.0.0")
@@ -21,9 +23,7 @@ def main():
         print("Optional environment variables:")
         print("  ANTHROPIC_API_KEY - Expected Anthropic API key for client validation")
         print("                      If set, clients must provide this exact API key")
-        print(
-            f"  OPENAI_BASE_URL - OpenAI API base URL (default: https://api.openai.com/v1)"
-        )
+        print(f"  OPENAI_BASE_URL - OpenAI API base URL (default: https://api.openai.com/v1)")
         print(f"  BIG_MODEL - Model for opus requests (default: gpt-4o)")
         print(f"  MIDDLE_MODEL - Model for sonnet requests (default: gpt-4o)")
         print(f"  SMALL_MODEL - Model for haiku requests (default: gpt-4o-mini)")
@@ -54,11 +54,11 @@ def main():
 
     # Parse log level - extract just the first word to handle comments
     log_level = config.log_level.split()[0].lower()
-    
+
     # Validate and set default if invalid
-    valid_levels = ['debug', 'info', 'warning', 'error', 'critical']
+    valid_levels = ["debug", "info", "warning", "error", "critical"]
     if log_level not in valid_levels:
-        log_level = 'info'
+        log_level = "info"
 
     # Start server
     uvicorn.run(
