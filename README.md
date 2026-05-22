@@ -196,6 +196,16 @@ MIDDLE_MODEL="llama3.1:70b"
 SMALL_MODEL="llama3.1:8b"
 ```
 
+#### Tuning Engines
+
+```bash
+OPENAI_API_KEY="sk-te-your-tuning-engines-key"
+OPENAI_BASE_URL="https://api.tuningengines.com/v1"
+BIG_MODEL="llama-3.3-70b-fp8"
+MIDDLE_MODEL="qwen-2.5-coder-32b"
+SMALL_MODEL="llama-3.1-8b-fast"
+```
+
 #### Other Providers
 
 Any OpenAI-compatible API can be used by setting the appropriate `OPENAI_BASE_URL`.
