@@ -125,9 +125,11 @@ def convert_claude_to_openai(
             openai_request["tool_choice"] = "auto"
 
     # Convert thinking config to reasoning_effort
+    thinking_enabled = False
     if claude_request.thinking:
         thinking_type = getattr(claude_request.thinking, "type", None)
         if thinking_type == "enabled" or claude_request.thinking.enabled:
+            thinking_enabled = True
             openai_request["reasoning_effort"] = "high"
             # Upstream requires max_tokens > thinking.budget_tokens.
             # When thinking is enabled, enforce a minimum of 16000 to avoid 400 errors.
@@ -137,6 +139,19 @@ def convert_claude_to_openai(
                     f"Raising max_tokens from {openai_request['max_tokens']} to {_THINKING_MIN_TOKENS} for thinking mode"
                 )
                 openai_request["max_tokens"] = _THINKING_MIN_TOKENS
+
+    # When thinking is enabled, some models (e.g. kimi) require reasoning_content
+    # on all assistant messages with tool_calls. Claude may omit thinking blocks
+    # in history (redacted, compacted, or simply not generated for simple tool calls).
+    # Fill empty reasoning_content as placeholder for those messages.
+    if thinking_enabled:
+        for msg in openai_messages:
+            if (
+                msg.get("role") == Constants.ROLE_ASSISTANT
+                and msg.get("tool_calls")
+                and "reasoning_content" not in msg
+            ):
+                msg["reasoning_content"] = ""
 
     return openai_request
 
