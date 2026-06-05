@@ -25,13 +25,15 @@ class ClaudeSystemContent(BaseModel):
     text: str
 
 class ClaudeMessage(BaseModel):
-    role: Literal["user", "assistant"]
+    role: Literal["user", "assistant", "system"]
     content: Union[str, List[Union[ClaudeContentBlockText, ClaudeContentBlockImage, ClaudeContentBlockToolUse, ClaudeContentBlockToolResult]]]
 
 class ClaudeTool(BaseModel):
     name: str
     description: Optional[str] = None
-    input_schema: Dict[str, Any]
+    input_schema: Optional[Dict[str, Any]] = None
+    type: Optional[str] = None  # For built-in Anthropic tools like web_search_20250305
+    max_uses: Optional[int] = None  # For built-in Anthropic tools like web_search_20250305
 
 class ClaudeThinkingConfig(BaseModel):
     enabled: bool = True

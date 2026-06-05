@@ -47,7 +47,19 @@ def convert_claude_to_openai(
     while i < len(claude_request.messages):
         msg = claude_request.messages[i]
 
-        if msg.role == Constants.ROLE_USER:
+        if msg.role == Constants.ROLE_SYSTEM:
+            # Newer Claude models (e.g. claude-opus-4-8) can send system-role messages
+            # interleaved inside messages[], not only via the top-level system field.
+            # Convert these to OpenAI system messages so they are not silently dropped.
+            system_content = msg.content if isinstance(msg.content, str) else (
+                "\n\n".join(
+                    block.text for block in msg.content
+                    if hasattr(block, "type") and block.type == Constants.CONTENT_TEXT
+                ) if isinstance(msg.content, list) else ""
+            )
+            if system_content.strip():
+                openai_messages.append({"role": Constants.ROLE_SYSTEM, "content": system_content.strip()})
+        elif msg.role == Constants.ROLE_USER:
             openai_message = convert_claude_user_message(msg)
             openai_messages.append(openai_message)
         elif msg.role == Constants.ROLE_ASSISTANT:
@@ -97,6 +109,11 @@ def convert_claude_to_openai(
     if claude_request.tools:
         openai_tools = []
         for tool in claude_request.tools:
+            # Skip built-in Anthropic tools (e.g. web_search_20250305, computer_use_20251201)
+            # that have no input_schema — these cannot be forwarded to OpenAI-compatible endpoints.
+            if not tool.input_schema:
+                logger.debug(f"Skipping built-in tool '{tool.name}' (type={tool.type}): no input_schema")
+                continue
             if tool.name and tool.name.strip():
                 openai_tools.append(
                     {
