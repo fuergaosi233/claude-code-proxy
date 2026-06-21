@@ -1,12 +1,32 @@
 import json
-from typing import Dict, Any, List
-from venv import logger
+from typing import Dict, Any, List, Union
 from src.core.constants import Constants
 from src.models.claude import ClaudeMessagesRequest, ClaudeMessage
 from src.core.config import config
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_system_text(system_content: Any) -> str:
+    """Extract and normalize system text from various formats.
+
+    Handles both Pydantic ClaudeSystemContent objects and raw dicts,
+    as well as plain strings. Returns an empty string if no text is found.
+    """
+    if isinstance(system_content, str):
+        return system_content.strip()
+
+    if isinstance(system_content, list):
+        text_parts = []
+        for block in system_content:
+            if hasattr(block, "type") and block.type == Constants.CONTENT_TEXT:
+                text_parts.append(block.text)
+            elif isinstance(block, dict) and block.get("type") == Constants.CONTENT_TEXT:
+                text_parts.append(block.get("text", ""))
+        return "\n\n".join(text_parts).strip()
+
+    return ""
 
 
 def convert_claude_to_openai(
@@ -20,26 +40,12 @@ def convert_claude_to_openai(
     # Convert messages
     openai_messages = []
 
-    # Add system message if present
+    # Add system message from top-level "system" parameter if present
     if claude_request.system:
-        system_text = ""
-        if isinstance(claude_request.system, str):
-            system_text = claude_request.system
-        elif isinstance(claude_request.system, list):
-            text_parts = []
-            for block in claude_request.system:
-                if hasattr(block, "type") and block.type == Constants.CONTENT_TEXT:
-                    text_parts.append(block.text)
-                elif (
-                    isinstance(block, dict)
-                    and block.get("type") == Constants.CONTENT_TEXT
-                ):
-                    text_parts.append(block.get("text", ""))
-            system_text = "\n\n".join(text_parts)
-
-        if system_text.strip():
+        system_text = _extract_system_text(claude_request.system)
+        if system_text:
             openai_messages.append(
-                {"role": Constants.ROLE_SYSTEM, "content": system_text.strip()}
+                {"role": Constants.ROLE_SYSTEM, "content": system_text}
             )
 
     # Process Claude messages
@@ -47,7 +53,15 @@ def convert_claude_to_openai(
     while i < len(claude_request.messages):
         msg = claude_request.messages[i]
 
-        if msg.role == Constants.ROLE_USER:
+        if msg.role == Constants.ROLE_SYSTEM:
+            # Handle inline system messages
+            # (Newer Claude Code sends system messages in the messages array)
+            system_text = _extract_system_text(msg.content)
+            if system_text:
+                openai_messages.append(
+                    {"role": Constants.ROLE_SYSTEM, "content": system_text}
+                )
+        elif msg.role == Constants.ROLE_USER:
             openai_message = convert_claude_user_message(msg)
             openai_messages.append(openai_message)
         elif msg.role == Constants.ROLE_ASSISTANT:
