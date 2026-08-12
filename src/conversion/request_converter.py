@@ -158,6 +158,28 @@ def convert_claude_user_message(msg: ClaudeMessage) -> Dict[str, Any]:
                         },
                     }
                 )
+        elif block.type == Constants.CONTENT_VIDEO:
+            source = block.source
+            if not isinstance(source, dict):
+                continue
+
+            source_type = source.get("type")
+            if source_type == "url" and source.get("url"):
+                url = source["url"]
+            elif (
+                source_type == "base64"
+                and source.get("media_type")
+                and source.get("data")
+            ):
+                url = f"data:{source['media_type']};base64,{source['data']}"
+            else:
+                continue
+
+            video_url = {"url": url}
+            for option in ("detail", "fps", "max_long_side_pixel"):
+                if option in source:
+                    video_url[option] = source[option]
+            openai_content.append({"type": "video_url", "video_url": video_url})
 
     if len(openai_content) == 1 and openai_content[0]["type"] == "text":
         return {"role": Constants.ROLE_USER, "content": openai_content[0]["text"]}

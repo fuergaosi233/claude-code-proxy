@@ -7,6 +7,7 @@ class Constants:
     
     CONTENT_TEXT = "text"
     CONTENT_IMAGE = "image"
+    CONTENT_VIDEO = "video"
     CONTENT_TOOL_USE = "tool_use"
     CONTENT_TOOL_RESULT = "tool_result"
     

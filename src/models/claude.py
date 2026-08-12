@@ -9,6 +9,12 @@ class ClaudeContentBlockImage(BaseModel):
     type: Literal["image"]
     source: Dict[str, Any]
 
+
+class ClaudeContentBlockVideo(BaseModel):
+    type: Literal["video"]
+    source: Dict[str, Any]
+
+
 class ClaudeContentBlockToolUse(BaseModel):
     type: Literal["tool_use"]
     id: str
@@ -26,7 +32,18 @@ class ClaudeSystemContent(BaseModel):
 
 class ClaudeMessage(BaseModel):
     role: Literal["user", "assistant"]
-    content: Union[str, List[Union[ClaudeContentBlockText, ClaudeContentBlockImage, ClaudeContentBlockToolUse, ClaudeContentBlockToolResult]]]
+    content: Union[
+        str,
+        List[
+            Union[
+                ClaudeContentBlockText,
+                ClaudeContentBlockImage,
+                ClaudeContentBlockVideo,
+                ClaudeContentBlockToolUse,
+                ClaudeContentBlockToolResult,
+            ]
+        ],
+    ]
 
 class ClaudeTool(BaseModel):
     name: str
