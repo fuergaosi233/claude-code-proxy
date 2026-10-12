@@ -31,6 +31,13 @@ python start_proxy.py        # or: ./start.sh, uv run claude-code-proxy
 ANTHROPIC_BASE_URL=http://localhost:8082 claude
 ```
 
+The Claude Code desktop app also works against the proxy: its connectors/plugins
+browse UI probes a small set of Anthropic control-plane endpoints, which the
+proxy answers with minimal payloads (a fake org from `PROXY_ORG_ID`, a
+non-expiring token echo, and empty connector/plugin listings), so the panels
+open showing empty lists instead of erroring. See README's "Desktop App
+Compatibility" section for details.
+
 ## How model mapping works
 
 | Claude Code sends       | Proxy uses       |

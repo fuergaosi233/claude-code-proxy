@@ -1,12 +1,13 @@
-import os
-import time
-import sys
-import itertools
 import asyncio
+import itertools
 import logging
+import os
+import sys
 import threading
+import time
 
 _log = logging.getLogger("config")
+
 
 # Configuration
 class Config:
@@ -14,7 +15,7 @@ class Config:
         self.openai_api_key = os.environ.get("OPENAI_API_KEY")
         if not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY not found in environment variables")
-        
+
         # Add Anthropic API key for client validation
         raw_anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
         if raw_anthropic_key:
@@ -22,7 +23,7 @@ class Config:
         self.anthropic_api_key = raw_anthropic_key if raw_anthropic_key else None
         if not self.anthropic_api_key:
             _log.info("ANTHROPIC_API_KEY not set or empty. Client API key validation is disabled.")
-        
+
         self.openai_base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
         self.azure_api_version = os.environ.get("AZURE_API_VERSION")  # For Azure OpenAI
         self.host = os.environ.get("HOST", "0.0.0.0")
@@ -44,7 +45,9 @@ class Config:
         self._provider_cycle = itertools.cycle(self.providers)
 
         # Usage tracking for RPM limits
-        self._provider_usage = {p["api_key"]: {"count": 0, "window_start": time.time()} for p in self.providers}
+        self._provider_usage = {
+            p["api_key"]: {"count": 0, "window_start": time.time()} for p in self.providers
+        }
         self._provider_penalties = {}  # api_key -> penalty_end_time
         self._rpm_limit = int(os.environ.get("RPM_LIMIT", "40"))  # RPM limit per key
 
@@ -67,7 +70,7 @@ class Config:
         self.big_model_effort = os.environ.get("BIG_MODEL_EFFORT")
         self.middle_model_effort = os.environ.get("MIDDLE_MODEL_EFFORT")
         self.small_model_effort = os.environ.get("SMALL_MODEL_EFFORT")
-        
+
         # --- Multi-model support with fallback (comma-separated) ---
         # Each tier can have a list of models separated by commas.
         # The first model is the primary; subsequent ones are fallbacks.
@@ -78,16 +81,16 @@ class Config:
         raw_big = os.environ.get("BIG_MODEL", "gpt-4o")
         raw_middle = os.environ.get("MIDDLE_MODEL", raw_big)
         raw_small = os.environ.get("SMALL_MODEL", "gpt-4o-mini")
-        
+
         self.big_models = [m.strip() for m in raw_big.split(",") if m.strip()]
         self.middle_models = [m.strip() for m in raw_middle.split(",") if m.strip()]
         self.small_models = [m.strip() for m in raw_small.split(",") if m.strip()]
-        
+
         # Active model index for each tier (0 = primary, 1+ = fallback)
         self._active_big_idx = 0
         self._active_middle_idx = 0
         self._active_small_idx = 0
-        
+
         # Model health tracking: model_name -> {"failed_at": timestamp, "consecutive_failures": count}
         self._model_failures: dict = {}
         self._model_failure_threshold = int(os.environ.get("MODEL_FAILURE_THRESHOLD", "3"))
@@ -106,18 +109,18 @@ class Config:
         # Track consecutive probe failures per tier so we can back off gracefully
         # for tiers whose primary remains unhealthy.
         self._restore_probe_failures: dict = {}
-        
+
         # Easy accessors for single-model compatibility (updated dynamically)
         self.big_model = self.big_models[0]
         self.middle_model = self.middle_models[0]
         self.small_model = self.small_models[0]
-        
+
         # Lock for thread-safe model index updates
         self._model_lock = threading.Lock()
-        
+
         # Background health checker task (started after event loop is running)
         self._health_check_task = None
-        
+
     def get_effort_default(self, tier: str):
         """Resolve the env-configured default effort for a model tier.
 
@@ -138,46 +141,47 @@ class Config:
         if not self.openai_api_key:
             return False
         # Basic format check for OpenAI API keys
-        if not self.openai_api_key.startswith('sk-'):
+        if not self.openai_api_key.startswith("sk-"):
             return False
         return True
-        
+
     def validate_client_api_key(self, client_api_key):
         """Validate client's Anthropic API key"""
         # If no ANTHROPIC_API_KEY is set in environment, skip validation
         if not self.anthropic_api_key:
             return True
-            
+
         # Check if the client's API key matches the expected value
         return client_api_key == self.anthropic_api_key
-    
+
     def get_custom_headers(self):
         """Get custom headers from environment variables"""
         custom_headers = {}
-        
+
         # Get all environment variables
         env_vars = dict(os.environ)
-        
+
         # Find CUSTOM_HEADER_* environment variables
         for env_key, env_value in env_vars.items():
-            if env_key.startswith('CUSTOM_HEADER_'):
+            if env_key.startswith("CUSTOM_HEADER_"):
                 # Convert CUSTOM_HEADER_KEY to Header-Key
                 # Remove 'CUSTOM_HEADER_' prefix and convert to header format
                 header_name = env_key[14:]  # Remove 'CUSTOM_HEADER_' prefix
-                
+
                 if header_name:  # Make sure it's not empty
                     # Convert underscores to hyphens for HTTP header format
-                    header_name = header_name.replace('_', '-')
+                    header_name = header_name.replace("_", "-")
                     custom_headers[header_name] = env_value
-        
+
         return custom_headers
 
     def report_rate_limit(self, api_key: str):
         """Mark a provider as rate-limited and set a cooldown penalty."""
         penalty_duration = 60  # 60 seconds cooldown
         self._provider_penalties[api_key] = time.time() + penalty_duration
-        _log.warning("Provider %s... reported rate limit. Penalizing for %ds.",
-                     api_key[:8], penalty_duration)
+        _log.warning(
+            "Provider %s... reported rate limit. Penalizing for %ds.", api_key[:8], penalty_duration
+        )
 
     def get_next_provider(self):
         """Return the next provider configuration respecting RPM limits.
@@ -210,7 +214,9 @@ class Config:
                 usage["count"] += 1
                 return provider
         # All providers exhausted
-        raise RuntimeError("All API keys have reached their RPM limit or are under penalty. Wait before retrying.")
+        raise RuntimeError(
+            "All API keys have reached their RPM limit or are under penalty. Wait before retrying."
+        )
 
     async def get_next_client_async(self):
         """Create an OpenAIClient for the next provider (async, non-blocking).
@@ -219,12 +225,12 @@ class Config:
         """
         # Lazy import to avoid circular dependency
         from src.core.client import OpenAIClient
-        
+
         try:
             prov = self.get_next_provider()
         except RuntimeError:
             return None  # Signal backpressure instead of blocking
-        
+
         custom_headers = self.get_custom_headers()
         return OpenAIClient(
             api_key=prov["api_key"],
@@ -240,7 +246,7 @@ class Config:
         """
         # Lazy import to avoid circular dependency
         from src.core.client import OpenAIClient
-        
+
         try:
             prov = self.get_next_provider()
         except RuntimeError:
@@ -252,8 +258,11 @@ class Config:
                 remaining = max(0, 60 - elapsed)
                 wait_times.append(remaining)
             wait = min(wait_times) if wait_times else 60
-            _log.warning("All API keys exhausted. Waiting %ds (of %ds needed) before retrying.",
-                         int(min(wait, 2.0)), int(wait))
+            _log.warning(
+                "All API keys exhausted. Waiting %ds (of %ds needed) before retrying.",
+                int(min(wait, 2.0)),
+                int(wait),
+            )
             time.sleep(min(wait, 2.0))  # Cap at 2s to avoid hanging
             prov = self.get_next_provider()
         custom_headers = self.get_custom_headers()
@@ -288,19 +297,21 @@ class Config:
         with self._model_lock:
             models, idx_attr = self._get_model_list(tier)
             current_idx = getattr(self, idx_attr)
-            
+
             if current_idx >= len(models):
                 return  # No more fallbacks available
-            
+
             current_model = models[current_idx]
             if current_model != model_name:
                 return  # Stale report for a non-active model
-            
-            entry = self._model_failures.get(model_name, {"failed_at": now, "consecutive_failures": 0})
+
+            entry = self._model_failures.get(
+                model_name, {"failed_at": now, "consecutive_failures": 0}
+            )
             entry["consecutive_failures"] += 1
             entry["failed_at"] = now
             self._model_failures[model_name] = entry
-            
+
             if entry["consecutive_failures"] >= self._model_failure_threshold:
                 next_idx = current_idx + 1
                 if next_idx < len(models):
@@ -316,9 +327,13 @@ class Config:
                         self.small_model = new_model
                     _log.warning(
                         "🔄 MODEL SWITCH [%s] %s → %s (after %d failures)",
-                        tier.upper(), old_model, new_model, entry["consecutive_failures"]
+                        tier.upper(),
+                        old_model,
+                        new_model,
+                        entry["consecutive_failures"],
                     )
                     from src.core.logging import log_active_models
+
                     log_active_models(_log)
                 else:
                     _log.warning("All %s tier models exhausted. No fallback available.", tier)
@@ -380,7 +395,7 @@ class Config:
             primary = models[0]
             # Determine whether we should attempt a probe now, given backoff
             consecutive_failures = self._restore_probe_failures.get(tier, 0)
-            backoff_intervals = min(2 ** consecutive_failures, self._restore_backoff_max_intervals)
+            backoff_intervals = min(2**consecutive_failures, self._restore_backoff_max_intervals)
             failure_entry = self._model_failures.get(primary)
             if failure_entry:
                 elapsed = time.time() - failure_entry["failed_at"]
@@ -391,8 +406,12 @@ class Config:
 
             healthy = await self._probe_model(primary)
             if healthy:
-                _log.info("Probe succeeded: restoring primary %s model '%s' after %d probe failure(s)",
-                          tier, primary, consecutive_failures)
+                _log.info(
+                    "Probe succeeded: restoring primary %s model '%s' after %d probe failure(s)",
+                    tier,
+                    primary,
+                    consecutive_failures,
+                )
                 with self._model_lock:
                     # Re-check the index under the lock; another caller may have
                     # mutated it concurrently. Only flip if still on a fallback.
@@ -414,12 +433,22 @@ class Config:
                 # Probe failed -> increment backoff counter, refresh failed_at
                 # so the next attempt waits another full backoff window.
                 self._restore_probe_failures[tier] = consecutive_failures + 1
-                _log.info("Probe '%s' still unhealthy (%s tier); backing off for %d intervals",
-                          primary, tier, min(2 ** self._restore_probe_failures[tier], self._restore_backoff_max_intervals))
+                _log.info(
+                    "Probe '%s' still unhealthy (%s tier); backing off for %d intervals",
+                    primary,
+                    tier,
+                    min(
+                        2 ** self._restore_probe_failures[tier], self._restore_backoff_max_intervals
+                    ),
+                )
                 with self._model_lock:
                     self._model_failures[primary] = {
                         "failed_at": time.time(),
-                        "consecutive_failures": failure_entry.get("consecutive_failures", 0) if failure_entry else self._model_failure_threshold,
+                        "consecutive_failures": (
+                            failure_entry.get("consecutive_failures", 0)
+                            if failure_entry
+                            else self._model_failure_threshold
+                        ),
                     }
 
     async def _run_health_check_loop(self):
@@ -437,17 +466,21 @@ class Config:
             try:
                 loop = asyncio.get_running_loop()
                 self._health_check_task = loop.create_task(self._run_health_check_loop())
-                _log.info("Model health checker started (interval: %ds).", self._model_health_check_interval)
+                _log.info(
+                    "Model health checker started (interval: %ds).",
+                    self._model_health_check_interval,
+                )
                 # Log initial active models
                 from src.core.logging import log_active_models
+
                 log_active_models(_log)
             except RuntimeError:
                 _log.warning("Cannot start health checker: no running event loop.")
 
+
 try:
     config = Config()
-    _log.info("Configuration loaded: API_KEY=%s, BASE_URL='%s'",
-              '*' * 20, config.openai_base_url)
+    _log.info("Configuration loaded: API_KEY=%s, BASE_URL='%s'", "*" * 20, config.openai_base_url)
     _log.info("Big models: %s", config.big_models)
     _log.info("Middle models: %s", config.middle_models)
     _log.info("Small models: %s", config.small_models)

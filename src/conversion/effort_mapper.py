@@ -17,8 +17,9 @@ To keep the rest of the proxy provider-agnostic, this module normalizes any
 incoming effort onto a single 4-level canonical scale and then renders the
 provider-specific request fields at the boundary.
 """
-from typing import Any, Dict, Optional
+
 import logging
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -84,9 +85,7 @@ def normalize_effort(claude_value: Optional[str], config_override: Optional[str]
 
     # Unknown value (bad env override, or a new Claude Code level we don't map
     # yet). Fall back to the default rather than failing the request.
-    logger.warning(
-        "Unrecognized reasoning effort %r; falling back to %r", raw, DEFAULT_EFFORT
-    )
+    logger.warning("Unrecognized reasoning effort %r; falling back to %r", raw, DEFAULT_EFFORT)
     return DEFAULT_EFFORT
 
 

@@ -12,6 +12,7 @@ Supported providers (auto-detected by inspecting the response fields):
 The discovered limits are written into context_manager._DISCOVERED_LIMITS
 (a dict keyed by model id) which get_model_limits() checks first.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -72,7 +73,8 @@ async def discover_provider_limits(
 
     _log.info(
         "Provider discovery complete: %d model(s) with known context limits from %s",
-        len(discovered), url,
+        len(discovered),
+        url,
     )
     return discovered
 
@@ -81,11 +83,11 @@ def _extract_context_length(m: dict) -> int:
     """Try every known field name for context window size."""
     # Ordered by reliability / prevalence
     candidates = [
-        "max_context_length",    # NVIDIA NIM primary field
-        "context_length",        # Together AI, some NIM models
-        "context_window",        # OpenAI extended metadata
-        "max_tokens",            # generic
-        "total_tokens",          # some older APIs
+        "max_context_length",  # NVIDIA NIM primary field
+        "context_length",  # Together AI, some NIM models
+        "context_window",  # OpenAI extended metadata
+        "max_tokens",  # generic
+        "total_tokens",  # some older APIs
     ]
     for field in candidates:
         val = m.get(field)
@@ -133,10 +135,11 @@ async def run_discovery_and_patch(
     custom_headers: Optional[dict] = None,
 ) -> None:
     """Discover limits, utilizing a local cache file to avoid unnecessary API calls."""
-    from src.core import context_manager
-    from src.core.config import config
     import json
     import os
+
+    from src.core import context_manager
+    from src.core.config import config
 
     cache_file = "model_contexts_cache.json"
     cached_limits: dict[str, tuple[int, int]] = {}
@@ -149,7 +152,9 @@ async def run_discovery_and_patch(
                 for k, v in raw_cache.items():
                     if isinstance(v, list) and len(v) == 2:
                         cached_limits[k] = (v[0], v[1])
-            _log.info("Loaded %d model limits from local cache (%s)", len(cached_limits), cache_file)
+            _log.info(
+                "Loaded %d model limits from local cache (%s)", len(cached_limits), cache_file
+            )
         except Exception as exc:
             _log.warning("Failed to load local context cache: %s", exc)
 
@@ -160,27 +165,32 @@ async def run_discovery_and_patch(
     # 2. Check if we actually need to make an API call
     # We only call the API if a specifically configured model is totally unknown
     configured_models = set(config.big_models + config.middle_models + config.small_models)
-    
+
     missing_models = []
     for model in configured_models:
         model_lower = (model or "").lower()
         # Is it in env overrides?
-        if model_lower in context_manager._ENV_OVERRIDES or any(k in model_lower for k in context_manager._ENV_OVERRIDES):
+        if model_lower in context_manager._ENV_OVERRIDES or any(
+            k in model_lower for k in context_manager._ENV_OVERRIDES
+        ):
             continue
         # Is it in the cache we just loaded?
         if model in cached_limits or any(k.lower() in model_lower for k in cached_limits):
             continue
-            
-        # We purposely DO NOT check _BUILTIN_LIMITS here. We want to fetch the real 
+
+        # We purposely DO NOT check _BUILTIN_LIMITS here. We want to fetch the real
         # accurate limits from the provider rather than settling for our hardcoded guesses.
-        
+
         missing_models.append(model)
 
     if not missing_models:
         _log.info("All configured models have known context limits. Skipping upstream discovery.")
         return
 
-    _log.info("Missing context limits for configured models: %s. Initiating upstream discovery.", missing_models)
+    _log.info(
+        "Missing context limits for configured models: %s. Initiating upstream discovery.",
+        missing_models,
+    )
 
     # 3. Make the API call to discover limits
     new_limits = await discover_provider_limits(
@@ -191,14 +201,14 @@ async def run_discovery_and_patch(
 
     # 4. Process all missing models (fallback if API didn't provide metadata)
     added_to_cache = False
-    
+
     # Update live mapping with any new discoveries first
     if new_limits:
         context_manager._DISCOVERED_LIMITS.update(new_limits)
         cached_limits.update(new_limits)
         added_to_cache = True
 
-    # For any configured model that NIM/OpenAI didn't provide context metadata for, 
+    # For any configured model that NIM/OpenAI didn't provide context metadata for,
     # we inject a fallback so the user can manually edit it in the JSON file.
     for model in missing_models:
         if model not in cached_limits:
@@ -210,11 +220,11 @@ async def run_discovery_and_patch(
                     cached_limits[model] = (ctx, out)
                     found = True
                     break
-            
+
             # Absolute fallback
             if not found:
                 cached_limits[model] = (32_000, 4_096)
-                
+
             context_manager._DISCOVERED_LIMITS[model] = cached_limits[model]
             added_to_cache = True
 
@@ -226,4 +236,3 @@ async def run_discovery_and_patch(
             _log.info("Saved %d total model limits to %s", len(cached_limits), cache_file)
         except Exception as exc:
             _log.warning("Failed to save local context cache: %s", exc)
-

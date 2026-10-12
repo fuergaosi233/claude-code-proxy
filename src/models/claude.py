@@ -1,13 +1,17 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Dict, Any, Optional, Union, Literal
+from typing import Any, Dict, List, Literal, Optional, Union
+
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class ClaudeContentBlockText(BaseModel):
     type: Literal["text"]
     text: str
 
+
 class ClaudeContentBlockImage(BaseModel):
     type: Literal["image"]
     source: Dict[str, Any]
+
 
 class ClaudeContentBlockToolUse(BaseModel):
     type: Literal["tool_use"]
@@ -15,14 +19,17 @@ class ClaudeContentBlockToolUse(BaseModel):
     name: str
     input: Dict[str, Any]
 
+
 class ClaudeContentBlockToolResult(BaseModel):
     type: Literal["tool_result"]
     tool_use_id: str
     content: Union[str, List[Dict[str, Any]], Dict[str, Any]]
 
+
 class ClaudeSystemContent(BaseModel):
     type: Literal["text"]
     text: str
+
 
 # Catch-all for content block types Claude Code may send on beta requests
 # (e.g. thinking / redacted_thinking / search_result blocks). Keeping these
@@ -33,15 +40,29 @@ class ClaudeContentBlockOther(BaseModel):
     type: str
     # All other fields are accepted via extra="allow".
 
+
 class ClaudeMessage(BaseModel):
     model_config = ConfigDict(extra="allow")
     role: str
-    content: Union[str, List[Union[ClaudeContentBlockText, ClaudeContentBlockImage, ClaudeContentBlockToolUse, ClaudeContentBlockToolResult, ClaudeContentBlockOther]]]
+    content: Union[
+        str,
+        List[
+            Union[
+                ClaudeContentBlockText,
+                ClaudeContentBlockImage,
+                ClaudeContentBlockToolUse,
+                ClaudeContentBlockToolResult,
+                ClaudeContentBlockOther,
+            ]
+        ],
+    ]
+
 
 class ClaudeTool(BaseModel):
     name: str
     description: Optional[str] = None
     input_schema: Dict[str, Any]
+
 
 class ClaudeThinkingConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
@@ -52,6 +73,7 @@ class ClaudeThinkingConfig(BaseModel):
     type: Optional[str] = None
     enabled: bool = True
     budget_tokens: Optional[int] = None
+
 
 class ClaudeMessagesRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
@@ -71,6 +93,7 @@ class ClaudeMessagesRequest(BaseModel):
     # Claude Code 2.1.x sends xhigh for its top effort level; the proxy
     # normalizes it to the canonical "max" in conversion/effort_mapper.py.
     reasoning_effort: Optional[Literal["low", "medium", "high", "xhigh"]] = None
+
 
 class ClaudeTokenCountRequest(BaseModel):
     model_config = ConfigDict(extra="allow")

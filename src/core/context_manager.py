@@ -7,6 +7,7 @@ These are conservative defaults. Override via env vars:
 """
 
 from __future__ import annotations
+
 import logging
 import os
 import re
@@ -19,34 +20,34 @@ _log = logging.getLogger("context_manager")
 # ---------------------------------------------------------------------------
 _BUILTIN_LIMITS: list[tuple[str, int, int]] = [
     # OpenAI
-    ("gpt-4o",           128_000, 16_384),
-    ("gpt-4-turbo",      128_000, 4_096),
-    ("gpt-4",            8_192,   4_096),
-    ("gpt-3.5-turbo",   16_385,  4_096),
-    ("o1",              200_000, 100_000),
-    ("o3",              200_000, 100_000),
-    ("o4",              200_000, 100_000),
+    ("gpt-4o", 128_000, 16_384),
+    ("gpt-4-turbo", 128_000, 4_096),
+    ("gpt-4", 8_192, 4_096),
+    ("gpt-3.5-turbo", 16_385, 4_096),
+    ("o1", 200_000, 100_000),
+    ("o3", 200_000, 100_000),
+    ("o4", 200_000, 100_000),
     # Anthropic (if proxied through)
-    ("claude-3-7",      200_000, 128_000),
-    ("claude-3-5",      200_000, 8_192),
-    ("claude-3-opus",   200_000, 4_096),
-    ("claude-3",        200_000, 4_096),
+    ("claude-3-7", 200_000, 128_000),
+    ("claude-3-5", 200_000, 8_192),
+    ("claude-3-opus", 200_000, 4_096),
+    ("claude-3", 200_000, 4_096),
     # DeepSeek
-    ("deepseek-r1",      64_000, 8_192),
-    ("deepseek",         64_000, 8_192),
+    ("deepseek-r1", 64_000, 8_192),
+    ("deepseek", 64_000, 8_192),
     # NVIDIA NIM & Configured Models
-    ("glm-5.3-flash",                 1_048_576, 128_000),
-    ("glm-5.3",                       1_048_576, 128_000),
-    ("nemotron-3-ultra-550b",         1_048_576, 32_768),
-    ("nemotron-3.5-lightning-30b",     1_048_576, 32_768),
-    ("kimi-k3",                       1_048_576, 32_768),
-    ("deepseek-v4.1-flash",           1_048_576, 32_768),
-    ("laguna-xs-2.1",                   262_144, 32_000),
-    ("muse-glimmer-30b",                131_072, 16_384),
-    ("mistral-nemotron",                128_000, 16_384),
-    ("gpt-oss-20b",                     131_072, 16_384),
-    ("gpt-oss",                         131_072, 16_384),
-    ("nv-",                             128_000, 4_096),
+    ("glm-5.3-flash", 1_048_576, 128_000),
+    ("glm-5.3", 1_048_576, 128_000),
+    ("nemotron-3-ultra-550b", 1_048_576, 32_768),
+    ("nemotron-3.5-lightning-30b", 1_048_576, 32_768),
+    ("kimi-k3", 1_048_576, 32_768),
+    ("deepseek-v4.1-flash", 1_048_576, 32_768),
+    ("laguna-xs-2.1", 262_144, 32_000),
+    ("muse-glimmer-30b", 131_072, 16_384),
+    ("mistral-nemotron", 128_000, 16_384),
+    ("gpt-oss-20b", 131_072, 16_384),
+    ("gpt-oss", 131_072, 16_384),
+    ("nv-", 128_000, 4_096),
 ]
 
 
@@ -114,7 +115,6 @@ def get_model_limits(model_name: str) -> tuple[int, int]:
     return 32_000, 4_096
 
 
-
 def estimate_tokens(messages: list[dict]) -> int:
     """Rough token estimate from a list of OpenAI-format messages.
 
@@ -170,7 +170,11 @@ def trim_messages_to_fit(
     _log.warning(
         "Context trim: model=%s estimated_input=%d tokens, budget=%d tokens "
         "(ctx_window=%d, max_output=%d). Dropping oldest turns.",
-        model_name, estimated, input_budget_tokens, ctx_window, max_output,
+        model_name,
+        estimated,
+        input_budget_tokens,
+        ctx_window,
+        max_output,
     )
 
     if len(messages) <= 2:
@@ -195,6 +199,9 @@ def trim_messages_to_fit(
     new_estimate = estimate_tokens(trimmed)
     _log.info(
         "Context trim done: %d -> %d messages, ~%d -> ~%d tokens",
-        len(messages), len(trimmed), estimated, new_estimate,
+        len(messages),
+        len(trimmed),
+        estimated,
+        new_estimate,
     )
     return trimmed, clamped_max_tokens

@@ -5,6 +5,7 @@ and the per-provider envelope/vocabulary mapping for every model family the
 proxy targets: NIM GLM-5.x, gpt-oss / o-series, kimi-k3 / deepseek-r1,
 deepseek-v4.1-flash (low/high strings), and NVIDIA Nemotron (chat_template_kwargs).
 """
+
 from src.conversion.effort_mapper import (
     CANONICAL_EFFORTS,
     DEFAULT_EFFORT,
@@ -14,8 +15,8 @@ from src.conversion.effort_mapper import (
     resolve_effort,
 )
 
-
 # --- normalize_effort: precedence and canonicalization ---
+
 
 def test_normalize_prefers_client_value_over_env_default():
     # The env var is a default only: in-session /effort always wins.
@@ -59,6 +60,7 @@ def test_canonical_scale_order():
 
 
 # --- resolve_effort: provider envelopes ---
+
 
 def test_glm5_vocabulary():
     # GLM-5.x speaks low|high|max (no "medium"); medium nudges up to high.
@@ -136,26 +138,31 @@ def test_provider_effort_backwards_compat():
 def _fresh_config(monkeypatch, **env):
     """Build a Config with only the given env vars set for effort."""
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    for var in ("REASONING_EFFORT", "BIG_MODEL_EFFORT", "MIDDLE_MODEL_EFFORT",
-                "SMALL_MODEL_EFFORT"):
+    for var in (
+        "REASONING_EFFORT",
+        "BIG_MODEL_EFFORT",
+        "MIDDLE_MODEL_EFFORT",
+        "SMALL_MODEL_EFFORT",
+    ):
         monkeypatch.delenv(var, raising=False)
     for k, v in env.items():
         monkeypatch.setenv(k, v)
     from src.core.config import Config
+
     return Config()
 
 
 def test_per_tier_effort_beats_global(monkeypatch):
     cfg = _fresh_config(monkeypatch, REASONING_EFFORT="high", SMALL_MODEL_EFFORT="low")
     assert cfg.get_effort_default("small") == "low"
-    assert cfg.get_effort_default("big") == "high"    # falls back to global
+    assert cfg.get_effort_default("big") == "high"  # falls back to global
     assert cfg.get_effort_default("middle") == "high"
 
 
 def test_per_tier_effort_independent_and_case_insensitive(monkeypatch):
     cfg = _fresh_config(monkeypatch, BIG_MODEL_EFFORT="max")
-    assert cfg.get_effort_default("BIG") == "max"      # tier lookup case-insensitive
-    assert cfg.get_effort_default("small") is None     # unset elsewhere -> None
+    assert cfg.get_effort_default("BIG") == "max"  # tier lookup case-insensitive
+    assert cfg.get_effort_default("small") is None  # unset elsewhere -> None
 
 
 def test_per_tier_effort_none_when_unset(monkeypatch):

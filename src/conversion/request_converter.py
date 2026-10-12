@@ -1,16 +1,16 @@
 import json
-from typing import Dict, Any, List
 import logging
-from src.core.constants import Constants
-from src.models.claude import ClaudeMessagesRequest, ClaudeMessage
-from src.core.config import config
-from src.core.context_manager import trim_messages_to_fit
+from typing import Any, Dict, List
+
 from src.conversion.effort_mapper import (
     normalize_effort,
     provider_effort,
     resolve_effort,
 )
-
+from src.core.config import config
+from src.core.constants import Constants
+from src.core.context_manager import trim_messages_to_fit
+from src.models.claude import ClaudeMessage, ClaudeMessagesRequest
 
 logger = logging.getLogger(__name__)
 
@@ -150,9 +150,11 @@ def convert_claude_to_openai(
         logger.debug(
             "Converted Claude -> OpenAI: model=%s, messages=%d, content_chars=%d, "
             "max_tokens=%d, stream=%s",
-            openai_model, len(openai_messages),
+            openai_model,
+            len(openai_messages),
             _message_content_char_len(openai_messages),
-            openai_request["max_tokens"], openai_request["stream"],
+            openai_request["max_tokens"],
+            openai_request["stream"],
         )
     # Add optional parameters
     if claude_request.stop_sequences:
@@ -213,14 +215,29 @@ def _is_reasoning_model(model_name: str) -> bool:
         "reasoner",
         "reasoning",
         "thinking",
-        "-o1", "-o3", "-o4",
-        "o1-", "o3-", "o4-",
-        "o1/", "o3/", "o4/",
-        "deepseek-r1", "deepseek/r1",
-        "deepseek-v3.2", "deepseek-v4",
-        "-r1", "_r1", "/r1", "r1-", "r1_",
+        "-o1",
+        "-o3",
+        "-o4",
+        "o1-",
+        "o3-",
+        "o4-",
+        "o1/",
+        "o3/",
+        "o4/",
+        "deepseek-r1",
+        "deepseek/r1",
+        "deepseek-v3.2",
+        "deepseek-v4",
+        "-r1",
+        "_r1",
+        "/r1",
+        "r1-",
+        "r1_",
         # Reasoning families this proxy routes effort to (see effort_mapper).
-        "glm-5", "z-ai", "gpt-oss", "nemotron",
+        "glm-5",
+        "z-ai",
+        "gpt-oss",
+        "nemotron",
     )
     return any(m in name for m in markers)
 
@@ -238,14 +255,24 @@ def _rejects_sampling_params(model_name: str) -> bool:
         "kimi-k3",
         "reasoner",
         "reasoning",
-        "-o1", "-o3", "-o4",
-        "o1-", "o3-", "o4-",
-        "o1/", "o3/", "o4/",
-        "deepseek-r1", "deepseek/r1",
-        "-r1", "_r1", "/r1", "r1-", "r1_",
+        "-o1",
+        "-o3",
+        "-o4",
+        "o1-",
+        "o3-",
+        "o4-",
+        "o1/",
+        "o3/",
+        "o4/",
+        "deepseek-r1",
+        "deepseek/r1",
+        "-r1",
+        "_r1",
+        "/r1",
+        "r1-",
+        "r1_",
     )
     return any(m in name for m in markers)
-
 
 
 def _message_content_char_len(messages: List[Dict[str, Any]]) -> int:
@@ -306,7 +333,7 @@ def convert_claude_user_message(msg: ClaudeMessage) -> Dict[str, Any]:
     """Convert Claude user message to OpenAI format."""
     if msg.content is None:
         return {"role": Constants.ROLE_USER, "content": ""}
-    
+
     if isinstance(msg.content, str):
         return {"role": Constants.ROLE_USER, "content": msg.content}
 
