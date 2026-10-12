@@ -1,9 +1,12 @@
-from fastapi import FastAPI
-from src.api.endpoints import router as api_router
-import uvicorn
-import sys
-import logging
 import asyncio
+import logging
+import sys
+
+import uvicorn
+from fastapi import FastAPI
+
+from src.api.compat import router as compat_router
+from src.api.endpoints import router as api_router
 from src.core.config import config
 from src.core.logging import log_active_models
 
@@ -12,16 +15,20 @@ _log = logging.getLogger("main")
 app = FastAPI(title="Claude-to-OpenAI API Proxy", version="1.0.0")
 
 app.include_router(api_router)
+# Compat router must come after the main router so explicit message-traffic
+# routes win; its catch-all (registered last inside the router) then serves
+# Anthropic-style 404s for any other /v1 or /api path.
+app.include_router(compat_router)
 
 
 @app.on_event("startup")
 async def startup():
     """Start the background model health checker and run model discovery on server startup."""
     config.start_health_checker()
-    
+
     # Run provider model discovery in the background so it doesn't block startup
     from src.core.provider_discovery import run_discovery_and_patch
-    
+
     # We only probe the first provider in the rotation for limits to keep it simple
     if config.providers:
         prov = config.providers[0]
@@ -64,23 +71,33 @@ def main():
 
     # Configuration summary - using logger
     _log.info("🚀 Claude-to-OpenAI API Proxy v1.0.0 starting")
-    _log.info("Configuration: BASE_URL=%s, Server=%s:%s",
-              config.openai_base_url, config.host, config.port)
-    _log.info("Models - Big: %s, Middle: %s, Small: %s",
-              config.big_model, config.middle_model, config.small_model)
-    _log.info("Limits - Max tokens: %d, Min tokens: %d, Timeout: %ds, RPM: %d",
-              config.max_tokens_limit, config.min_tokens_limit,
-              config.request_timeout, config._rpm_limit)
-    _log.info("Client API key validation: %s",
-              'Enabled' if config.anthropic_api_key else 'Disabled')
+    _log.info(
+        "Configuration: BASE_URL=%s, Server=%s:%s", config.openai_base_url, config.host, config.port
+    )
+    _log.info(
+        "Models - Big: %s, Middle: %s, Small: %s",
+        config.big_model,
+        config.middle_model,
+        config.small_model,
+    )
+    _log.info(
+        "Limits - Max tokens: %d, Min tokens: %d, Timeout: %ds, RPM: %d",
+        config.max_tokens_limit,
+        config.min_tokens_limit,
+        config.request_timeout,
+        config._rpm_limit,
+    )
+    _log.info(
+        "Client API key validation: %s", "Enabled" if config.anthropic_api_key else "Disabled"
+    )
 
     # Parse log level - extract just the first word to handle comments
     log_level = config.log_level.split()[0].lower()
-    
+
     # Validate and set default if invalid
-    valid_levels = ['debug', 'info', 'warning', 'error', 'critical']
+    valid_levels = ["debug", "info", "warning", "error", "critical"]
     if log_level not in valid_levels:
-        log_level = 'info'
+        log_level = "info"
 
     # Start server
     uvicorn.run(

@@ -1,8 +1,10 @@
 """Tests for context_manager: model limits lookup and message trimming."""
+
 import pytest
+
 from src.core.context_manager import (
-    get_model_limits,
     estimate_tokens,
+    get_model_limits,
     trim_messages_to_fit,
 )
 
@@ -86,6 +88,7 @@ class TestTrimMessagesToFit:
         # Use a model with a small context by passing a custom name via env
         # Instead, test via a very small fake budget by monkeypatching
         import src.core.context_manager as cm
+
         orig = cm._BUILTIN_LIMITS[:]
         try:
             cm._BUILTIN_LIMITS.insert(0, ("test-tiny", 2_000, 512))
@@ -97,6 +100,7 @@ class TestTrimMessagesToFit:
     def test_first_and_last_message_preserved(self):
         msgs = self._make_long_conversation(n_turns=50, chars_each=800)
         import src.core.context_manager as cm
+
         orig = cm._BUILTIN_LIMITS[:]
         try:
             cm._BUILTIN_LIMITS.insert(0, ("test-tiny2", 2_000, 512))

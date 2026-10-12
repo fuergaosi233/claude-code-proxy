@@ -14,6 +14,7 @@ A proxy server that enables **Claude Code** to work with OpenAI-compatible API p
 - **Streaming Responses**: Real-time SSE streaming support
 - **Image Support**: Base64 encoded image input
 - **Custom Headers**: Automatic injection of custom HTTP headers for API requests
+- **Desktop App Compatibility**: Minimal Anthropic control-plane endpoints (`/api/organizations`, `/v1/me`, a non-expiring `/v1/oauth/token` echo, empty connector/plugin listings) so the Claude Code desktop app's connectors/plugins browse UI opens instead of erroring; any other unknown `/v1` or `/api` path returns a well-formed Anthropic-style 404
 - **Error Handling**: Comprehensive error handling and logging
 
 ## Quick Start
@@ -74,6 +75,10 @@ The application automatically loads environment variables from a `.env` file in 
 - `ANTHROPIC_API_KEY` - Expected Anthropic API key for client validation
   - If set, clients must provide this exact API key to access the proxy
   - If not set, any API key will be accepted
+
+**Desktop App Compatibility:**
+
+- `PROXY_ORG_ID` - Fake organization id returned by the desktop-compat endpoints (`GET /api/organizations`, `GET /v1/organizations`, `GET /v1/me`, and the `PROXY_ORG_ID`-echoed sub-resource listings) (default: `claude-code-proxy-org`)
 
 **Model Configuration:**
 

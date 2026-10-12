@@ -1,21 +1,22 @@
-from fastapi import APIRouter, HTTPException, Request, Header, Depends
-from fastapi.responses import JSONResponse, StreamingResponse
-from datetime import datetime
 import os
 import time
 import uuid
+from datetime import datetime
 from typing import Optional
 
-from src.core.config import config
-from src.core.logging import logger
-from src.core.client import OpenAIClient
-from src.models.claude import ClaudeMessagesRequest, ClaudeTokenCountRequest
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
+
 from src.conversion.request_converter import convert_claude_to_openai
 from src.conversion.response_converter import (
-    convert_openai_to_claude_response,
     convert_openai_streaming_to_claude_with_cancellation,
+    convert_openai_to_claude_response,
 )
+from src.core.client import OpenAIClient
+from src.core.config import config
+from src.core.logging import logger
 from src.core.model_manager import model_manager
+from src.models.claude import ClaudeMessagesRequest, ClaudeTokenCountRequest
 
 router = APIRouter()
 
@@ -55,30 +56,34 @@ openai_client = config.get_next_client()
 # No global OpenAI client; each request obtains a client from config to enable round‑robin provider selection.
 
 
-async def validate_api_key(x_api_key: Optional[str] = Header(None), authorization: Optional[str] = Header(None)):
+async def validate_api_key(
+    x_api_key: Optional[str] = Header(None), authorization: Optional[str] = Header(None)
+):
     """Validate the client's API key from either x-api-key header or Authorization header."""
     client_api_key = None
-    
+
     # Extract API key from headers
     if x_api_key:
         client_api_key = x_api_key
     elif authorization and authorization.startswith("Bearer "):
         client_api_key = authorization.replace("Bearer ", "")
-    
+
     # Skip validation if ANTHROPIC_API_KEY is not set in the environment
     if not config.anthropic_api_key:
         return
-        
+
     # Validate the client API key
     if not client_api_key or not config.validate_client_api_key(client_api_key):
         logger.warning(f"Invalid API key provided by client")
         raise HTTPException(
-            status_code=401,
-            detail="Invalid API key. Please provide a valid Anthropic API key."
+            status_code=401, detail="Invalid API key. Please provide a valid Anthropic API key."
         )
 
+
 @router.post("/v1/messages")
-async def create_message(request: ClaudeMessagesRequest, http_request: Request, _: None = Depends(validate_api_key)):
+async def create_message(
+    request: ClaudeMessagesRequest, http_request: Request, _: None = Depends(validate_api_key)
+):
     try:
         # Generate unique request ID for cancellation tracking
         request_id = str(uuid.uuid4())
@@ -87,8 +92,14 @@ async def create_message(request: ClaudeMessagesRequest, http_request: Request, 
         openai_model, model_tier = model_manager.map_claude_model_to_openai(request.model)
 
         # Log incoming request with model info
-        logger.info("Request [%s] model=%s -> %s (tier=%s, stream=%s)",
-                    request_id[:8], request.model, openai_model, model_tier, request.stream)
+        logger.info(
+            "Request [%s] model=%s -> %s (tier=%s, stream=%s)",
+            request_id[:8],
+            request.model,
+            openai_model,
+            model_tier,
+            request.stream,
+        )
 
         # Convert Claude request to OpenAI format
         openai_request = convert_claude_to_openai(request, model_manager)
@@ -98,9 +109,7 @@ async def create_message(request: ClaudeMessagesRequest, http_request: Request, 
             raise HTTPException(status_code=499, detail="Client disconnected")
 
         # Get the model and tier from the model manager
-        openai_model, model_tier = model_manager.map_claude_model_to_openai(
-            request.model
-        )
+        openai_model, model_tier = model_manager.map_claude_model_to_openai(request.model)
         # Update the OpenAI request with the resolved model
         openai_request["model"] = openai_model
         # Persist the actually-routed model (post-fallback) for the statusline.
@@ -116,7 +125,10 @@ async def create_message(request: ClaudeMessagesRequest, http_request: Request, 
                 client = await config.get_next_client_async()
                 if client is None:
                     # All API keys exhausted - return 429
-                    raise HTTPException(status_code=429, detail="All API keys exhausted. Please wait before trying again.")
+                    raise HTTPException(
+                        status_code=429,
+                        detail="All API keys exhausted. Please wait before trying again.",
+                    )
                 openai_stream = client.create_chat_completion_stream(
                     openai_request, request_id, model_tier
                 )
@@ -141,6 +153,7 @@ async def create_message(request: ClaudeMessagesRequest, http_request: Request, 
                 # Log unexpected errors (API errors are now yielded as events in the stream)
                 logger.error(f"Unexpected streaming error: {e}")
                 import traceback
+
                 logger.error(traceback.format_exc())
         else:
             # Non-streaming response
@@ -149,9 +162,7 @@ async def create_message(request: ClaudeMessagesRequest, http_request: Request, 
                 openai_response = await client.create_chat_completion(
                     openai_request, request_id, model_tier
                 )
-                claude_response = convert_openai_to_claude_response(
-                    openai_response, request
-                )
+                claude_response = convert_openai_to_claude_response(openai_response, request)
                 return claude_response
             except HTTPException as e:
                 # Re-raise HTTP exceptions as-is (client already reported the error)
@@ -224,21 +235,27 @@ async def health_check():
             current_count = 0
         else:
             current_count = usage["count"]
-        
+
         # Check penalty status
         penalty_remaining = 0
         if api_key in config._provider_penalties:
             penalty_remaining = max(0, config._provider_penalties[api_key] - now)
-        
-        rpm_info.append({
-            "key_prefix": api_key[:8] + "..." if len(api_key) > 8 else api_key,
-            "requests_this_minute": current_count,
-            "rpm_limit": config._rpm_limit,
-            "percentage_used": round((current_count / config._rpm_limit) * 100, 1) if config._rpm_limit > 0 else 0,
-            "penalty_remaining_seconds": int(penalty_remaining),
-            "window_age_seconds": int(now - usage["window_start"])
-        })
-    
+
+        rpm_info.append(
+            {
+                "key_prefix": api_key[:8] + "..." if len(api_key) > 8 else api_key,
+                "requests_this_minute": current_count,
+                "rpm_limit": config._rpm_limit,
+                "percentage_used": (
+                    round((current_count / config._rpm_limit) * 100, 1)
+                    if config._rpm_limit > 0
+                    else 0
+                ),
+                "penalty_remaining_seconds": int(penalty_remaining),
+                "window_age_seconds": int(now - usage["window_start"]),
+            }
+        )
+
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
@@ -246,7 +263,7 @@ async def health_check():
         "api_key_valid": config.validate_api_key(),
         "client_api_key_validation": bool(config.anthropic_api_key),
         "rpm_info": rpm_info,
-        "total_configured_keys": len(config.providers)
+        "total_configured_keys": len(config.providers),
     }
 
 
@@ -345,14 +362,11 @@ async def list_models():
     }
 
 
-
-
 @router.api_route("/api/hello", methods=["GET", "HEAD"])
 @router.api_route("/hello", methods=["GET", "HEAD"])
 async def api_hello():
     """Health probe endpoint used by Anthropic clients and Claude extensions."""
     return {"status": "ok"}
-
 
 
 @router.get("/")
@@ -377,4 +391,3 @@ async def root():
             "test_connection": "/test-connection",
         },
     }
-
