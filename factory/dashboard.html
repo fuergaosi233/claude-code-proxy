@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Software Factory</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #181b24;
+    --line: #2a2e3a;
+    --text: #e6e8ee;
+    --dim: #8b90a0;
+    --blue: #6aa1ff;
+    --green: #4ade80;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --grey: #6b7280;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; padding: 24px; }
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; }
+  h1 { font-size: 20px; font-weight: 600; }
+  header .sub { color: var(--dim); font-size: 12px; }
+  header .refresh { margin-left: auto; color: var(--dim); font-size: 12px; }
+
+  /* pipeline */
+  .pipeline { display: grid; grid-template-columns: repeat(5, minmax(130px, 1fr)); gap: 10px; margin-bottom: 28px; }
+  .stage-col { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; min-height: 120px; }
+  .stage-col > h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); padding: 4px 4px 10px; }
+  .stage-col.review > h2 { color: var(--blue); }
+  .stage-col.needs-human > h2 { color: var(--amber); }
+  .stage-col.merged > h2 { color: var(--green); }
+
+  /* job cards */
+  .card { background: #1f2330; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; cursor: pointer; transition: border-color .15s; }
+  .card:hover { border-color: var(--blue); }
+  .card.needs-human { border-color: var(--amber); background: #2b2417; }
+  .card .id { font-weight: 600; font-size: 12px; word-break: break-all; }
+  .card .feature { color: var(--dim); font-size: 11px; margin: 2px 0 6px; }
+  .card .meta { display: flex; gap: 8px; font-size: 10px; color: var(--dim); }
+
+  /* review chips */
+  .chips { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+  .chip { font-size: 9px; padding: 2px 6px; border-radius: 999px; border: 1px solid var(--grey); color: var(--grey); }
+  .chip.pass { border-color: var(--green); color: var(--green); }
+  .chip.changes { border-color: var(--red); color: var(--red); background: rgba(248,113,113,.1); }
+  .chip.pending { border-color: var(--grey); color: var(--grey); opacity: .6; }
+  .round-tag { font-size: 9px; color: var(--dim); margin-top: 4px; }
+
+  .empty { color: var(--dim); font-size: 12px; padding: 12px 4px; text-align: center; }
+
+  /* drawer */
+  #overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; }
+  #overlay.open { display: block; }
+  #drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 90vw); background: var(--panel); border-left: 1px solid var(--line); padding: 20px; overflow-y: auto; display: none; }
+  #drawer.open { display: block; }
+  #drawer h3 { font-size: 14px; margin-bottom: 4px; word-break: break-all; }
+  #drawer .close { position: absolute; top: 12px; right: 14px; background: none; border: none; color: var(--dim); font-size: 18px; cursor: pointer; }
+  #drawer .file-list { margin-top: 12px; }
+  #drawer .file-btn { display: block; width: 100%; text-align: left; background: #1f2330; border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 6px 10px; margin-bottom: 6px; cursor: pointer; font-size: 12px; font-family: inherit; }
+  .file-btn:hover { border-color: var(--blue); }
+  #drawer pre { background: #10131b; border: 1px solid var(--line); border-radius: 6px; padding: 12px; font-size: 12px; white-space: pre-wrap; margin-top: 10px; }
+  #drawer .hint { color: var(--dim); font-size: 11px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Software Factory</h1>
+  <span class="sub">/factory loop — spec → build → review ×4 → approve</span>
+  <span class="refresh" id="refresh">loading…</span>
+</header>
+
+<div class="pipeline" id="pipeline"></div>
+
+<div id="overlay"></div>
+<div id="drawer"><button class="close" onclick="closeDrawer()">&times;</button><div id="drawer-content"></div></div>
+
+<script>
+const STAGES = ["spec", "build", "review", "needs-human", "merged"];
+const REVIEWERS = [["security","sec"],["ux","ux"],["ui","ui"],["code","code"]];
+
+async function tick() {
+  try {
+    const res = await fetch("board.json", { cache: "no-store" });
+    const board = await res.json();
+    render(board.jobs || []);
+    document.getElementById("refresh").textContent = "updated " + new Date().toLocaleTimeString();
+  } catch (e) {
+    document.getElementById("refresh").textContent = "waiting for board.json…";
+  }
+}
+
+function render(jobs) {
+  const el = document.getElementById("pipeline");
+  el.innerHTML = "";
+  for (const stage of STAGES) {
+    const col = document.createElement("div");
+    col.className = "stage-col " + stage;
+    const h = document.createElement("h2");
+    h.textContent = stage === "needs-human" ? "needs human" : stage;
+    col.appendChild(h);
+    const inStage = jobs.filter(j => j.stage === stage);
+    if (!inStage.length) {
+      const d = document.createElement("div");
+      d.className = "empty";
+      d.textContent = "—";
+      col.appendChild(d);
+    }
+    for (const job of inStage) col.appendChild(card(job));
+    el.appendChild(col);
+  }
+}
+
+function card(job) {
+  const c = document.createElement("div");
+  c.className = "card" + (job.stage === "needs-human" ? " needs-human" : "");
+  c.onclick = () => openDrawer(job);
+
+  const id = document.createElement("div");
+  id.className = "id";
+  id.textContent = job.id;
+  const feat = document.createElement("div");
+  feat.className = "feature";
+  feat.textContent = job.feature || "";
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = (job.branch || "") + (job.decision && job.decision !== "pending" ? " · " + job.decision : "");
+  c.append(id, feat, meta);
+
+  if (job.stage === "review") {
+    const chips = document.createElement("div");
+    chips.className = "chips";
+    for (const [name, short] of REVIEWERS) {
+      const s = (job.reviews && job.reviews[name]) || "pending";
+      const ch = document.createElement("span");
+      ch.className = "chip " + (s === "PASS" ? "pass" : s === "CHANGES" ? "changes" : "pending");
+      ch.textContent = short + " " + (s === "PASS" ? "✓" : s === "CHANGES" ? "✗" : "·");
+      ch.title = name + ": " + s;
+      chips.appendChild(ch);
+    }
+    const round = document.createElement("div");
+    round.className = "round-tag";
+    round.textContent = "round " + (job.round || 1) + " / 2";
+    c.append(chips, round);
+  }
+  return c;
+}
+
+async function openDrawer(job) {
+  const drawer = document.getElementById("drawer");
+  const content = document.getElementById("drawer-content");
+  content.innerHTML = "";
+  const title = document.createElement("h3");
+  title.textContent = job.id;
+  const sub = document.createElement("div");
+  sub.className = "hint";
+  sub.textContent = (job.feature || "") + " — stage: " + job.stage + (job.round ? ", round " + job.round : "");
+  content.append(title, sub);
+  const list = document.createElement("div");
+  list.className = "file-list";
+  content.appendChild(list);
+
+  const files = ["spec.md", "build.md"];
+  for (let r = 1; r <= (job.round || 0); r++)
+    for (const name of ["security", "ux", "ui", "code"])
+      files.push("round-" + r + "/review-" + name + ".md");
+  files.push("decision.md");
+
+  for (const f of files) {
+    const btn = document.createElement("button");
+    btn.className = "file-btn";
+    btn.textContent = "📄 " + f;
+    btn.onclick = async () => {
+      let old = content.querySelector("pre");
+      if (old) old.remove();
+      const pre = document.createElement("pre");
+      try {
+        const res = await fetch("jobs/" + job.id + "/" + f, { cache: "no-store" });
+        pre.textContent = res.ok ? await res.text() : "(not written yet)";
+      } catch { pre.textContent = "(cannot read file — serve with: python3 -m http.server)"; }
+      content.appendChild(pre);
+    };
+    list.appendChild(btn);
+  }
+
+  document.getElementById("overlay").classList.add("open");
+  drawer.classList.add("open");
+}
+function closeDrawer() {
+  document.getElementById("overlay").classList.remove("open");
+  document.getElementById("drawer").classList.remove("open");
+}
+document.getElementById("overlay").onclick = closeDrawer;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+
+tick();
+setInterval(tick, 3000);
+</script>
+</body>
+</html>

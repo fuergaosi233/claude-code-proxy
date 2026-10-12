@@ -1,0 +1,7 @@
+VERDICT: PASS
+
+- Clean fit with repo patterns: `src/api/compat.py` follows the router-per-concern split the spec asked for, module-level env reads (`ORG_ID`, compat.py:41) match the existing style in `src/core/context_manager.py:81` (`_TRIM_RATIO`), and `main.py:18-25` mounts it after the main router with a clear ordering comment. black/isort clean at line-length 100 (verified); offline subset 61 passed.
+- Naming and docstrings are consistent with neighbors; helpers (`_org_payload`, `_me_payload`, `_oauth_token_payload`, `_ORG_LISTINGS`) keep route bodies one-liners, no sprawl or copy-paste blocks.
+- Minor (non-blocking): the deferred `from src.api.endpoints import validate_api_key` inside `_compat_auth` (compat.py:104) is unnecessary — endpoints does not import compat, so a module-level import would work and avoid duplicating the two `Header` params that must track `validate_api_key`'s signature.
+- Minor (non-blocking): the three standalone listing routes (`list_mcp_servers`/`list_connectors`/`list_plugins`, compat.py:161-176) re-type the same empty-listing shapes that already exist as `_ORG_LISTINGS` values; a shared constant or helper would remove the duplicated literals.
+- Minor (non-blocking, scripts/test_desktop_compat.py:158): the `"anthropic error body"` predicate starts with `lambda r, b: b == b and ...`, which is always true and reads like a leftover guard; drop the `b == b` term.

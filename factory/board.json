@@ -1,0 +1,18 @@
+{
+  "jobs": [
+    {
+      "id": "001-desktop-connectors-plugins",
+      "feature": "Fix Claude Code desktop app unable to browse/add connectors and plugins through the proxy",
+      "branch": "factory/001-desktop-connectors-plugins",
+      "stage": "merged",
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "code": "PASS",
+        "api": "PASS"
+      },
+      "decision": "APPROVE",
+      "updatedAt": "2026-10-12T12:30:00"
+    }
+  ]
+}
