@@ -25,10 +25,17 @@ class Config:
         self.request_timeout = int(os.environ.get("REQUEST_TIMEOUT", "90"))
         self.max_retries = int(os.environ.get("MAX_RETRIES", "2"))
         
-        # Model settings - BIG and SMALL models
-        self.big_model = os.environ.get("BIG_MODEL", "gpt-4o")
+        # Direct MiniMax endpoints use Flash unless a model was explicitly saved.
+        self.is_minimax = not self.azure_api_version and self.openai_base_url.rstrip("/") in {
+            "https://api.minimax.io/v1",
+            "https://api.minimaxi.com/v1",
+        }
+        default_model = "MiniMax-M3.1-Flash" if self.is_minimax else "gpt-4o"
+        self.big_model = os.environ.get("BIG_MODEL", default_model)
         self.middle_model = os.environ.get("MIDDLE_MODEL", self.big_model)
-        self.small_model = os.environ.get("SMALL_MODEL", "gpt-4o-mini")
+        self.small_model = os.environ.get(
+            "SMALL_MODEL", "MiniMax-M3.1-Flash" if self.is_minimax else "gpt-4o-mini"
+        )
         
     def validate_api_key(self):
         """Basic API key validation"""

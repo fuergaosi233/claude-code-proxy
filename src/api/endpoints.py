@@ -62,6 +62,7 @@ async def create_message(request: ClaudeMessagesRequest, http_request: Request, 
 
         # Convert Claude request to OpenAI format
         openai_request = convert_claude_to_openai(request, model_manager)
+        preserve_reasoning = config.is_minimax and openai_request["model"].startswith("MiniMax-")
 
         # Check if client disconnected before processing
         if await http_request.is_disconnected():
@@ -81,6 +82,7 @@ async def create_message(request: ClaudeMessagesRequest, http_request: Request, 
                         http_request,
                         openai_client,
                         request_id,
+                        preserve_reasoning=preserve_reasoning,
                     ),
                     media_type="text/event-stream",
                     headers={
@@ -108,7 +110,7 @@ async def create_message(request: ClaudeMessagesRequest, http_request: Request, 
                 openai_request, request_id
             )
             claude_response = convert_openai_to_claude_response(
-                openai_response, request
+                openai_response, request, preserve_reasoning=preserve_reasoning
             )
             return claude_response
     except HTTPException:
