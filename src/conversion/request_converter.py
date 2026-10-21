@@ -1,4 +1,5 @@
 import json
+from fastapi import HTTPException
 from typing import Dict, Any, List
 from venv import logger
 from src.core.constants import Constants
@@ -16,6 +17,7 @@ def convert_claude_to_openai(
 
     # Map model
     openai_model = model_manager.map_claude_model_to_openai(claude_request.model)
+    minimax = model_manager.config.is_minimax and openai_model.startswith("MiniMax-")
 
     # Convert messages
     openai_messages = []
@@ -52,6 +54,10 @@ def convert_claude_to_openai(
             openai_messages.append(openai_message)
         elif msg.role == Constants.ROLE_ASSISTANT:
             openai_message = convert_claude_assistant_message(msg)
+            if minimax and isinstance(msg.content, list):
+                reasoning = [block.thinking for block in msg.content if block.type == "thinking"]
+                if reasoning:
+                    openai_message["reasoning_content"] = "".join(reasoning)
             openai_messages.append(openai_message)
 
             # Check if next message contains tool results
@@ -125,6 +131,22 @@ def convert_claude_to_openai(
             }
         else:
             openai_request["tool_choice"] = "auto"
+
+    if minimax and openai_model in {"MiniMax-M3.1-Flash", "MiniMax-M3"}:
+        thinking = claude_request.thinking
+        if thinking is not None:
+            thinking_type = thinking.type or ("adaptive" if thinking.enabled else "disabled")
+            if thinking_type == "enabled":
+                thinking_type = "adaptive"
+            if openai_model == "MiniMax-M3.1-Flash" and thinking_type == "disabled":
+                raise HTTPException(status_code=400, detail="MiniMax-M3.1-Flash requires adaptive thinking")
+            openai_request["extra_body"] = {"thinking": {"type": thinking_type}}
+        effort = (claude_request.output_config or {}).get("effort")
+        if openai_model == "MiniMax-M3.1-Flash" and effort is not None:
+            if not isinstance(effort, str) or effort not in {"low", "medium", "high", "xhigh", "max"}:
+                raise HTTPException(status_code=400, detail="Unsupported MiniMax-M3.1-Flash effort")
+            # extra_body also supports effort values newer than the pinned SDK.
+            openai_request.setdefault("extra_body", {})["reasoning_effort"] = effort
 
     return openai_request
 

@@ -196,6 +196,37 @@ MIDDLE_MODEL="llama3.1:70b"
 SMALL_MODEL="llama3.1:8b"
 ```
 
+#### MiniMax
+
+```bash
+OPENAI_API_KEY="your-minimax-api-key"
+OPENAI_BASE_URL="https://api.minimax.io/v1"
+# Alternatively, use the regional endpoint: https://api.minimaxi.com/v1
+```
+
+For these direct endpoints, unset `BIG_MODEL`, `MIDDLE_MODEL`, and `SMALL_MODEL`
+to use **MiniMax-M3.1-Flash** by default. **MiniMax-M3** is the alternative;
+set any of those variables to `MiniMax-M3` to select it. Existing explicit model
+settings take precedence, including values copied from `.env.example`.
+Explicit `MiniMax-*` request IDs, including legacy and custom IDs, pass through unchanged.
+Gateway URLs keep their existing configuration and defaults.
+
+Flash always uses adaptive thinking. `thinking: {"type": "disabled"}` (or the
+legacy `thinking: {"enabled": false}`) returns HTTP 400 for Flash. Use
+`output_config: {"effort": "low"}` to tune Flash reasoning; supported values are
+`low`, `medium`, `high`, `xhigh`, and `max` (the server default). M3 supports
+adaptive or disabled thinking and does not tune depth with effort.
+
+The proxy preserves MiniMax reasoning in `thinking` content blocks alongside
+text and tool calls. Send all response blocks back in assistant history when
+continuing a tool conversation. Streaming text and tools are sent as they arrive;
+the accumulated reasoning block is sent before the final message event. Existing
+`<think>` text is preserved verbatim. `MAX_TOKENS_LIMIT` still caps output at 4096
+by default, including reasoning tokens; raise it explicitly for longer answers.
+
+See the [MiniMax SDK contract](https://platform.minimax.io/docs/api-reference/text-openai-api)
+for model and reasoning details.
+
 #### Other Providers
 
 Any OpenAI-compatible API can be used by setting the appropriate `OPENAI_BASE_URL`.

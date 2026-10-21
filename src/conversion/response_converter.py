@@ -6,7 +6,7 @@ from src.models.claude import ClaudeMessagesRequest
 
 
 def convert_openai_to_claude_response(
-    openai_response: dict, original_request: ClaudeMessagesRequest
+    openai_response: dict, original_request: ClaudeMessagesRequest, preserve_reasoning: bool = False
 ) -> dict:
     """Convert OpenAI response to Claude format."""
 
@@ -20,6 +20,8 @@ def convert_openai_to_claude_response(
 
     # Build Claude content blocks
     content_blocks = []
+    if preserve_reasoning and message.get("reasoning_content"):
+        content_blocks.append({"type": "thinking", "thinking": message["reasoning_content"]})
 
     # Add text content
     text_content = message.get("content")
@@ -220,6 +222,7 @@ async def convert_openai_streaming_to_claude_with_cancellation(
     http_request: Request,
     openai_client,
     request_id: str,
+    preserve_reasoning: bool = False,
 ):
     """Convert OpenAI streaming response to Claude streaming format with cancellation support."""
 
@@ -238,6 +241,7 @@ async def convert_openai_streaming_to_claude_with_cancellation(
     current_tool_calls = {}
     final_stop_reason = Constants.STOP_END_TURN
     usage_data = {"input_tokens": 0, "output_tokens": 0}
+    reasoning_parts = []
 
     try:
         async for line in openai_stream:
@@ -279,6 +283,9 @@ async def convert_openai_streaming_to_claude_with_cancellation(
                     choice = choices[0]
                     delta = choice.get("delta", {})
                     finish_reason = choice.get("finish_reason")
+
+                    if preserve_reasoning and delta.get("reasoning_content"):
+                        reasoning_parts.append(delta["reasoning_content"])
 
                     # Handle text delta
                     if delta and "content" in delta and delta["content"] is not None:
@@ -380,6 +387,19 @@ async def convert_openai_streaming_to_claude_with_cancellation(
     for tool_data in current_tool_calls.values():
         if tool_data.get("started") and tool_data.get("claude_index") is not None:
             yield f"event: {Constants.EVENT_CONTENT_BLOCK_STOP}\ndata: {json.dumps({'type': Constants.EVENT_CONTENT_BLOCK_STOP, 'index': tool_data['claude_index']}, ensure_ascii=False)}\n\n"
+
+    # Return the complete reasoning as a replayable block after streamed text/tools.
+    if reasoning_parts:
+        index = text_block_index + tool_block_counter + 1
+        events = [
+            {"type": "content_block_start", "index": index,
+             "content_block": {"type": "thinking", "thinking": ""}},
+            {"type": "content_block_delta", "index": index,
+             "delta": {"type": "thinking_delta", "thinking": "".join(reasoning_parts)}},
+            {"type": "content_block_stop", "index": index},
+        ]
+        for event in events:
+            yield f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
 
     yield f"event: {Constants.EVENT_MESSAGE_DELTA}\ndata: {json.dumps({'type': Constants.EVENT_MESSAGE_DELTA, 'delta': {'stop_reason': final_stop_reason, 'stop_sequence': None}, 'usage': usage_data}, ensure_ascii=False)}\n\n"
     yield f"event: {Constants.EVENT_MESSAGE_STOP}\ndata: {json.dumps({'type': Constants.EVENT_MESSAGE_STOP}, ensure_ascii=False)}\n\n"

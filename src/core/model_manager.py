@@ -15,6 +15,14 @@ class ModelManager:
             claude_model.startswith("deepseek-")):
             return claude_model
         
+        # Preserve explicit current, legacy, and custom MiniMax model IDs.
+        if claude_model.startswith("MiniMax-"):
+            return claude_model
+        if self.config.is_minimax and claude_model in {
+            self.config.big_model, self.config.middle_model, self.config.small_model
+        }:
+            return claude_model
+
         # Map based on model naming patterns
         model_lower = claude_model.lower()
         if 'haiku' in model_lower:
