@@ -1,12 +1,50 @@
 {
-  "z-ai/glm-5.3": [1048576, 128000],
-  "z-ai/glm-5.3-flash": [1048576, 128000],
-  "nvidia/nemotron-3-ultra-550b-a55b": [1048576, 32768],
-  "nvidia/nemotron-3.5-lightning-30b-a3b": [1048576, 32768],
-  "moonshotai/kimi-k3": [1048576, 32768],
-  "deepseek-ai/deepseek-v4.1-flash": [1048576, 32768],
-  "poolside/laguna-xs-2.1": [262144, 32000],
-  "meta/muse-glimmer-30b": [131072, 16384],
-  "mistralai/mistral-nemotron": [128000, 16384],
-  "openai/gpt-oss-20b": [131072, 16384]
+  "z-ai/glm-5.3": [
+    1048576,
+    128000
+  ],
+  "z-ai/glm-5.3-flash": [
+    1048576,
+    128000
+  ],
+  "nvidia/nemotron-3-ultra-550b-a55b": [
+    1048576,
+    32768
+  ],
+  "nvidia/nemotron-3.5-lightning-30b-a3b": [
+    1048576,
+    32768
+  ],
+  "moonshotai/kimi-k3": [
+    1048576,
+    32768
+  ],
+  "deepseek-ai/deepseek-v4.1-flash": [
+    1048576,
+    32768
+  ],
+  "poolside/laguna-xs-2.1": [
+    262144,
+    32000
+  ],
+  "meta/muse-glimmer-30b": [
+    131072,
+    16384
+  ],
+  "mistralai/mistral-nemotron": [
+    128000,
+    16384
+  ],
+  "openai/gpt-oss-20b": [
+    131072,
+    16384
+  ],
+  "nvidia/nemotron-3.5-super-vl-120b-a12b": [
+    32000,
+    4096
+  ],
+  "stepfun-ai/step-5-preview": [
+    32000,
+    4096
+  ]
 }
