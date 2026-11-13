@@ -13,6 +13,20 @@
       },
       "decision": "APPROVE",
       "updatedAt": "2026-10-12T12:30:00"
+    },
+    {
+      "id": "002-models-cache-ttl",
+      "feature": "Add a /v1/models cache TTL so model discovery doesn't hit upstream on every request",
+      "branch": "factory/002-models-cache-ttl",
+      "stage": "refine",
+      "round": 0,
+      "reviews": {
+        "security": "pending",
+        "code": "pending",
+        "api": "pending"
+      },
+      "decision": "pending",
+      "updatedAt": "2026-10-12T14:00:00"
     }
   ]
 }
